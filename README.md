@@ -17,9 +17,14 @@ Up to date, the following sets of libraries and toolkits have been established:
 #### Installation
 
 conda create --name angiographies
+
 conda install python=3.6 scikit-image simpleitk vmtk -c simpleitk -c vmtk
+
 cd <project folder>
+
 pip install -e .
+
+conda install llvm=3.3
 
 
 #### Usage
