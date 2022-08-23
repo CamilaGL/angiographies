@@ -363,7 +363,9 @@ def cleanNetwork(base_path, patient):
             #writeVTKPolydataasVTP(network, base_path+patient+'/skeletons/'+patient+fileName+'.vtp')
 
 def toUniquePointID(theCenterlines):
-
+    '''Delete repeated point locations and keep one id per point.
+    theCenterlines: vtkPolydata'''
+    deleteablePoints = []
     vertextype = vtk.vtkFloatArray()
     vertextype.SetName('VertexType')
     for i in range(theCenterlines.GetNumberOfPoints()):
@@ -372,6 +374,7 @@ def toUniquePointID(theCenterlines):
     for i in range(theCenterlines.GetNumberOfCells()):  
         for j in [0, theCenterlines.GetCell(i).GetNumberOfPoints()-1]:#only node points
             if theCenterlines.GetPoint(theCenterlines.GetCell(i).GetPointId(j)) in pointDict.keys():
+                deleteablePoints.append(theCenterlines.GetCell(i).GetPointId(j)) #we'll need to delete this point later
                 theCenterlines.ReplaceCellPoint(i, theCenterlines.GetCell(i).GetPointId(j), pointDict[theCenterlines.GetPoint(theCenterlines.GetCell(i).GetPointId(j))])
                 #theCenterlines.GetCell(i).GetPointIds().SetId(j, pointDict[theCenterlines.GetPoint(theCenterlines.GetCell(i).GetPointId(j))]) #change id so that it points to the point we care about
                 #pointDict[theCenterlines.GetCell(i).GetPoint(j)].append(theCenterlines.GetCell(i).GetPointId(j)) #add this ID
@@ -381,8 +384,17 @@ def toUniquePointID(theCenterlines):
                 pointDict[theCenterlines.GetPoint(theCenterlines.GetCell(i).GetPointId(j))] = theCenterlines.GetCell(i).GetPointId(j) #we're keeping this id
                 vertextype.SetValue(theCenterlines.GetCell(i).GetPointId(j), 1)
     
+    #for i in deleteablePoints:
+    #    theCenterlines.DeletePoint(i)
+
     theCenterlines.GetPointData().AddArray(vertextype)
-    return theCenterlines
+
+    cleaner = vtk.vtkCleanPolyData()
+    cleaner.SetInputData(theCenterlines)
+    cleaner.Update()
+    newCenterlines = cleaner.GetOutput()
+
+    return newCenterlines
 
 def main():
     '''This script receives the path to a polydata vtp to merge lines into polylines.
