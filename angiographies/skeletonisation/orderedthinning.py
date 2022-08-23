@@ -2,23 +2,10 @@
 # And the voxel consideration order is given by the squared euclidean distance to the nearest background voxel
 
 import numpy as np
-import SimpleITK as sitk
 import argparse
 import time
-
-
-def numpyToSITK(inputImage):
-   return sitk.GetImageFromArray(inputImage)
-
-def SITKToNumpy(inputImage):
-   return sitk.GetArrayFromImage(inputImage)
-
-def readNIFTIasSITK(filename):
-    return sitk.ReadImage(filename)
-
-def writeSITK(imageSITK, outputFile): 
-    sitk.WriteImage(imageSITK, outputFile)
-
+from angiographies.utils.io import readNIFTIasSITK, writeSITK, writeVTKPolydataasVTP, readVTPPolydata
+from angiographies.utils.formatconversion import numpyToSITK, SITKToNumpy
 
 # --------- ordered thinning with different criterions ---------------
 
@@ -46,7 +33,7 @@ def binarySegmToBinarySkeleton(img, inputgrayscale=None):
         weighted[:,:,:] = np.iinfo(np.intc).max
         if npimg.shape == npimgorig.shape: #check segmentation and grayscale images have same dimentions
             getWeightedImageGrayscale(npimg, npimgorig, weighted) #we're editing weighted here!
-    
+    print("Weighted image ready.")
     newOrderedThinning(npimg, weighted) #we're editing npimg here!
     print("--- %s seconds ---" % (time.time() - start_time))
     
@@ -335,6 +322,7 @@ def main():
     outputf = args.ofile
     inputgrayscale = args.gsfile
     #conncomp = args.connected
+    print("Starting thinning")
     img = readNIFTIasSITK(inputf)
     imgorig = readNIFTIasSITK(inputgrayscale) if inputgrayscale is not None else None
     
