@@ -2,7 +2,7 @@ from setuptools import setup, find_namespace_packages
 
 setup(name='angiographies',
       packages=find_namespace_packages(include=["angiographies", "angiographies.*"]),
-      version='0.1.3',
+      version='0.1.4',
       description='My framework for processing brain angiographies.',
       url='https://github.com/CamilaGL/angiographies',
       author='Camila Garcia',
