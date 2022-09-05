@@ -6,6 +6,7 @@ import argparse
 import time
 from angiographies.utils.io import readNIFTIasSITK, writeSITK, writeVTKPolydataasVTP, readVTPPolydata
 from angiographies.utils.formatconversion import numpyToSITK, SITKToNumpy
+from angiographies.utils.imageprocessing import binClosing
 
 # --------- ordered thinning with different criterions ---------------
 
@@ -17,20 +18,23 @@ def binarySegmToBinarySkeleton(img, inputgrayscale=None):
     
     npimg = SITKToNumpy(img)
     #npimg = np.array([[[0,1,1],[0,1,1],[1,1,1]],[[0,1,0],[0,1,1],[0,1,1]],[[0,1,0],[0,1,0],[1,1,1]]], dtype=np.ubyte)
-    
-    weighted = None
+    weighted = np.zeros(npimg.shape, dtype=np.intc) #here we're going to be assigning the order priority to our foreground voxels
+   
+    #weighted = None
     start_time = time.time()
     if inputgrayscale is None:
-        weighted = np.empty(npimg.shape, dtype=np.intc) #here we're going to be assigning the order priority to our foreground voxels
-        print(np.iinfo(np.intc).max)
-        weighted[:,:,:] = np.iinfo(np.intc).max
+        print("Euclidean weighting")
+        #weighted = np.empty(npimg.shape, dtype=np.intc) #here we're going to be assigning the order priority to our foreground voxels
+        #print(np.iinfo(np.intc).max)
+        #weighted[:,:,:] = np.iinfo(np.intc).max
         #weighted = np.zeros(npimg.shape, dtype=np.intc) #here we're going to be assigning the order priority to our foreground voxels
         getWeightedImageEuclidean(npimg, weighted) #we're editing weighted here!
     else:
+        print("Grayscale weighting")
         npimgorig = SITKToNumpy(inputgrayscale)
-        weighted = np.empty(npimg.shape, dtype=np.intc) #here we're going to be assigning the order priority to our foreground voxels
-        print(np.iinfo(np.intc).max)
-        weighted[:,:,:] = np.iinfo(np.intc).max
+        #weighted = np.empty(npimg.shape, dtype=np.intc) #here we're going to be assigning the order priority to our foreground voxels
+        #print(np.iinfo(np.intc).max)
+        #weighted[:,:,:] = np.iinfo(np.intc).max
         if npimg.shape == npimgorig.shape: #check segmentation and grayscale images have same dimentions
             getWeightedImageGrayscale(npimg, npimgorig, weighted) #we're editing weighted here!
     print("Weighted image ready.")
@@ -307,13 +311,13 @@ def getMinEuclideanToBackground(img, v):
     return delta
 
 
-
 def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-ifile", help="path to case segmentation", default="", required=True)
     parser.add_argument("-ofile", help="path to output folder+case", default="", required=True)
     parser.add_argument("-gsfile", help="path to original grayscale image", default=None, required=False)
+    parser.add_argument("--closing", help="perform morphological closing", action="store_true", required=False, default=False)
     #parser.add_argument("--connected", help="extract connected components", action="store_true", required=False, default=False)
 
 
@@ -321,11 +325,13 @@ def main():
     inputf = args.ifile
     outputf = args.ofile
     inputgrayscale = args.gsfile
+    closing = args.closing
     #conncomp = args.connected
     print("Starting thinning")
     img = readNIFTIasSITK(inputf)
     imgorig = readNIFTIasSITK(inputgrayscale) if inputgrayscale is not None else None
-    
+    if closing:
+        img = binClosing(img)
     thinnedsitk = binarySegmToBinarySkeleton(img, imgorig)
 
     writeSITK(thinnedsitk,outputf)
