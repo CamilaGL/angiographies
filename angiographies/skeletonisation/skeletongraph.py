@@ -1,4 +1,14 @@
-# This code generates a sleketon as indicated in BABIN2018
+"""
+Based on the skeleton algorithm described by BABIN 2018 
+Requires binary skeleton/thinning
+
+Running environment requirements: 
+
+    numpy
+    sitk
+    edt
+
+"""
 
 import numpy as np
 import vtk
@@ -6,8 +16,9 @@ import argparse
 from itertools import chain
 import math
 import time
-from angiographies.utils.io import readNIFTIasSITK, writeSITK, writeVTKPolydataasVTP, readVTPPolydata
-from angiographies.utils.formatconversion import numpyToSITK, SITKToNumpy
+from angiographies.utils.iositk import readNIFTIasSITK
+from angiographies.utils.iovtk import writeVTKPolydataasVTP, readVTPPolydata
+from angiographies.utils.formatconversionsitk import SITKToNumpy
 
 
 def uniqueLine(graph, idp1, idp2):
@@ -665,6 +676,7 @@ def binSketoSke(inputImage):
     print("--- graph to skeleton took %s seconds ---" % (time.time() - start_time))
 
     return skeleton, graph
+
 
 
 def graphtoSke(graph):

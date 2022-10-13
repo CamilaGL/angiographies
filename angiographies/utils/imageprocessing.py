@@ -1,12 +1,15 @@
 import SimpleITK as sitk
 import numpy
-from angiographies.utils.formatconversion import numpyToSITK, SITKToNumpy
+from angiographies.utils.formatconversionsitk import SITKToNumpy
 
 
 
-def binClosing(binImg):
-    vectorRadius=(1,1,1)
+def binClosing(binImg, rad):
+    vectorRadius=(rad,rad,rad)
     kernel=sitk.sitkBall
+    print(binImg.GetPixelIDTypeAsString())
+    if ("integer" not in binImg.GetPixelIDTypeAsString()):
+        return sitk.BinaryMorphologicalClosing(sitk.Cast(binImg, sitk.sitkInt32),vectorRadius, kernel)
     return sitk.BinaryMorphologicalClosing(binImg,vectorRadius, kernel)
 
 def thresholdImageSITK(inputImage, lt, ut):

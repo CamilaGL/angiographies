@@ -1,6 +1,16 @@
+"""
+Merge polydata of lines into polylines
+
+Running environment requirements: 
+
+    numpy
+    vtk
+
+"""
+
 import vtk
 import argparse
-from angiographies.utils.io import writeVTKPolydataasVTP,readVTPPolydata
+from angiographies.utils.iovtk import writeVTKPolydataasVTP,readVTPPolydata
 
 
 def tracePolyline(inputske, vertextype, start, next, linesstillleft, pointsstillleft):

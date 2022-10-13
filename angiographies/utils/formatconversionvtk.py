@@ -1,12 +1,5 @@
-import SimpleITK as sitk
 import vtk
-from vtk.util import numpy_support
-
-def numpyToSITK(inputImage):
-   return sitk.GetImageFromArray(inputImage)
-
-def SITKToNumpy(inputImage):
-   return sitk.GetArrayFromImage(inputImage)
+from vtkmodules.util import numpy_support
 
 def vtkToNumpy(inputImage):
     dimensions = inputImage.GetDimensions() # Get Dimensions

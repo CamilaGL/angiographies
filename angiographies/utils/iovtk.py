@@ -1,8 +1,6 @@
 import vtk
-import SimpleITK as sitk
-from vtk.util import numpy_support
+from vtkmodules.util import numpy_support
 import numpy
-import json
 
 def readVTKasVTK(fileName):
     #read with VTK file as VTK Image
@@ -25,22 +23,6 @@ def readSTLasVTK(filename):
     dreader.SetFileName(filename)
     dreader.Update()
     return dreader.GetOutput()
-
-def readDICOMasSITK(inputDirectory):
-    #TO DO
-    reader = sitk.ImageSeriesReader()
-    dicom_names = reader.GetGDCMSeriesFileNames(inputDirectory)
-    reader.SetFileNames(dicom_names)
-    reader.ReadImageInformation()
-
-    # Get the sorted file names, opens all files in the directory and reads the meta-information
-    # without reading the bulk pixel data
-    series_ID = reader.GetMetaData('0020|000e')
-    sorted_file_names = sitk.ImageSeriesReader.GetGDCMSeriesFileNames(inputDirectory, series_ID)
-
-    # Read the bulk pixel data
-    img = sitk.ReadImage(sorted_file_names)
-    # reader.GetMetaData(0, '0010|0010')
 
 def readVTIasVTKFlipped(inputDirectory):
     #read DICOM as VTK Image, correcting z order
@@ -122,12 +104,12 @@ def readNIFTIasVTK(fileName):
     reader = vtk.vtkNIFTIImageReader()
     reader.SetFileName(fileName)
     reader.Update()
+    #print(reader.GetNIFTIHeader().GetQOffsetX())
+    #print(reader.GetQFormMatrix())
+    #print(reader.GetQFormMatrix().GetElement(0,3),reader.GetQFormMatrix().GetElement(1,3),reader.GetQFormMatrix().GetElement(2,3))
     inputData = reader.GetOutput()
+    #remember vtk always returns 0 0 0 as origin
     return inputData
-
-
-def readNIFTIasSITK(filename):
-    return sitk.ReadImage(filename)
 
 
 def writeVTKPolydataasVTK(inputImage, fileName):
@@ -149,14 +131,11 @@ def writeVTKPolydataasVTP(inputImage, fileName):
     dwriter.SetInputData(inputImage)
     dwriter.Write()
 
-def writeSITK(imageSITK, outputFile):
-    sitk.WriteImage(imageSITK, outputFile)
+def writeNIFTIwithVTK(image, fileName):
+    '''TO DO: test!'''
+    #image as vtkimage
+    writer = vtk.vtkNIFTIImageWriter()
+    writer.SetInputData(image)
+    writer.SetFileName(fileName)
+    writer.Write()
 
-def writejson(dict, outputFile):
-    with open(outputFile, 'w') as f:
-        json.dump(dict, f, sort_keys=True, indent=4)
-
-def readjson(inputFile):
-    with open(inputFile, 'r') as f:
-        a = json.load(f)
-    return a
