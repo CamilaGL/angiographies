@@ -451,6 +451,127 @@ def binarySkeletonToGraphReOptimised(img):
     return graph
 
 
+def binarySkeletonToGraphReOptimised2(img):
+    '''Given a binary thinning/skeleton, create a graph where voxels are nodes and neighbour voxels are connected by edges,'''
+    #binary img in numpy (remember this means the coordinates are zyx and not xyz, so all operations with numpy are in zyx and the ones with vtk are xyz)
+
+
+    vertexes = vtk.vtkPoints()
+    edges = vtk.vtkCellArray()
+    graph = vtk.vtkPolyData()
+    vertextype = vtk.vtkFloatArray()
+    vertextype.SetName('VertexType')
+    edt = vtk.vtkFloatArray()
+    edt.SetName('EDT')
+    edgetype = vtk.vtkFloatArray()
+    edgetype.SetName('EdgeType')
+    graph.SetPoints(vertexes)
+    graph.SetLines(edges)
+    npoints=0
+    # types: 0 L, 1 N
+    # for nc in range(0,theCenterlines.GetNumberOfCells()):
+    #     pId=0
+    #     newPolyLine = vtk.vtkPolyLine()
+    #     for np in range(0,theCenterlines.GetCell(nc).GetNumberOfPoints()):
+    #         newPoints.InsertNextPoint(theCenterlines.GetPoint(theCenterlines.GetCell(nc).GetPointId(np)))
+    #         newPolyLine.GetPointIds().SetNumberOfIds(theCenterlines.GetCell(nc).GetNumberOfPoints())
+    #         newPolyLine.GetPointIds().SetId(pId, npoints)
+    #         newRadius.InsertNextValue(radius.GetTuple(theCenterlines.GetCell(nc).GetPointId(np))[0])
+    #         pId=pId+1
+    #         npoints=npoints+1
+    #     newPolyLines.InsertNextCell(newPolyLine)
+    
+
+    #max = img.shape
+    specified = np.nonzero(img) #get nonzero voxels
+
+
+    pointIds = np.empty(img.shape, dtype=np.intc)
+    pointIds[:,:,:] = -1
+    cantpoints = len(list(zip(*(specified)))) #this is the number of points i'm going to maybe create
+    print(cantpoints)
+    lineIds = {}#np.empty((cantpoints, cantpoints), dtype=np.intc)
+    #lineIds[:,:] = -1
+
+    #print("todos estos nonzero ", len(specified))
+    for (z,y,x) in zip(*specified): #iterate over nonzero voxels 
+        #print("the pixel is ", [x,y,z])
+        vxConn = classifyVoxel(img, [z,y,x]) #classify this voxel
+        #print("cuantos conectados ", vxConn)
+        #consider if it would be better to keep a matrix with all vertexes already created instead of searching the graph?
+        if vxConn==0: #if isolated, voxel is not considered a vertex
+            continue
+        
+        #else, check if voxel is vertex already.
+        #   if vertex, get id and classify
+        #   create lines not already present
+        id = pointIds[z,y,x]
+        if id == -1: #we haven't assigned an id to this point yet
+            #print("a ver si creo uno, no sé")
+            id = vertexes.InsertNextPoint([x,y,z]) #create vertex with the correct coordinate order
+            vertextype.InsertNextValue(0) #create as L-vertex
+            edt.InsertNextValue(img[z,y,x])
+            pointIds[z,y,x] = id
+            lineIds[id] = {} #initiate a new line dict for this point
+
+        if vxConn == 1 or vxConn>2:
+            vertextype.SetValue(id, 1) #mark as N-vertex
+            #endline
+        # elif vxConn == 2:
+        #     #mark vertex as L-vertex
+        #     #middle of line
+        #     pass
+
+        #for all connected voxels
+        #   if voxel doesnt exist, create
+        #   else, search number
+        #   if edge doesn't exist, create
+        #   if vxConn == 2, mark edge as L-edge
+        #print("im here", [x,y,z])
+        #print("id",id)
+        neighbours = np.nonzero(get26conn(img, [z,y,x])) #get nonzero 26-connected voxels, but moved to the origin
+        minbias, maxbias = get26connlim(img, [z,y,x]) #move 3x3x3 26-conn mat to the appropriate index
+        #print("mi matriz de 26 conectados es ", minbias, maxbias)
+        for (k,j,i) in zip(*neighbours): #for all connected 
+            id2 = pointIds[k+minbias[0],j+minbias[1],i+minbias[2]]
+            #print("newid", id2)
+            if id2 == -1: #create vertex
+                id2 = vertexes.InsertNextPoint([i+minbias[2],j+minbias[1],k+minbias[0]]) #create vertex
+                vertextype.InsertNextValue(0) #create as L-vertex
+                edt.InsertNextValue(img[k+minbias[0],j+minbias[1],i+minbias[2]])
+                pointIds[k+minbias[0],j+minbias[1],i+minbias[2]] = id2 #saving it on the pointmatrix
+                lineIds[id2] = {} #initiate a new line dict for this point
+            
+            if id != id2: #don't create line with same vertex!
+                idline = -1 
+                if id2 in lineIds[id]:
+                    idline = lineIds[id][id2]
+                if idline == -1: #create line
+                    #print("no existe")
+                    newEdge = vtk.vtkLine()
+                    newEdge.GetPointIds().SetNumberOfIds(2)
+                    newEdge.GetPointIds().SetId(0, id)
+                    newEdge.GetPointIds().SetId(1, id2)
+                    #idline = edges.InsertNextCell(newEdge)
+                    edgetype.InsertNextValue(1) #create as N-edge
+                    idline = graph.GetLines().InsertNextCell(newEdge)
+                    graph.BuildCells()
+                    graph.BuildLinks()
+                    graph.GetLines().Modified()
+                    lineIds[id][id2] = idline
+                    lineIds[id2][id] = idline
+                    #print("cree linea ", idline, " con", id, id2)
+                    
+                if vxConn == 2:
+                    edgetype.SetValue(idline,0) #if edge is incident to at least one L-vertex, then it turns into L-edge
+        
+    
+    graph.GetPointData().AddArray(vertextype)
+    graph.GetPointData().AddArray(edt)
+    graph.GetCellData().AddArray(edgetype)
+    return graph
+
+
 
 def graphToSkeleton(graph):
     '''Given a graph (vtkPolydata), merge all subgraphs as indicated in BABIN2018'''
@@ -678,6 +799,22 @@ def binSketoSke(inputImage):
     return skeleton, graph
 
 
+def binSketoSke2(inputImage):
+    '''Given a binary thinning/skeletonisation, create a skeleton consisting of vertexes and edges.
+    inputImage: numpy matrix
+    returns two vtkpolydata'''
+    
+    start_time = time.time()
+    graph = binarySkeletonToGraphReOptimised2(inputImage)
+    print("--- binary skeleton to graph took %s seconds ---" % (time.time() - start_time))
+
+    start_time = time.time()    
+    skeleton = graphToSkeletonOptimised(graph)
+    print("--- graph to skeleton took %s seconds ---" % (time.time() - start_time))
+
+    return skeleton, graph
+
+
 
 def graphtoSke(graph):
     '''Given a graph created from a binary thinning/skeletonisation, create a skeleton consisting of vertexes and edges.
@@ -710,7 +847,7 @@ def main():
     if inputfgraph is None:
         img = readNIFTIasSITK(inputf)
         npimg = SITKToNumpy(img)
-        ske, graph = binSketoSke(npimg)
+        ske, graph = binSketoSke2(npimg)
         if outputfgraph is not None:
             writeVTKPolydataasVTP(graph, outputfgraph)
         writeVTKPolydataasVTP(ske, outputf)
