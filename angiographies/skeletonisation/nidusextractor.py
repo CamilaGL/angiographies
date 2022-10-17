@@ -55,11 +55,20 @@ def sphere(mat, rad, c):
 def minus(p1, p2):
     return (p1[0]-p2[0],p1[1]-p2[1],p1[2]-p2[2])
 
+def sum(p1, p2):
+    return (p1[0]+p2[0],p1[1]+p2[1],p1[2]+p2[2])
+
 def divT(p1, p2): #divide tuple
     return (round(p1[0]/p2[0]),round(p1[1]/p2[1]),round(p1[2]/p2[2]))
 
 def divS(e, p):#scalar to tuple
     return (round(e/p[0]),round(e/p[1]),round(e/p[2]))
+
+def divTS(p, e):#tuple by scalar
+    return (p[0]/e,p[1]/e,p[2]/e)
+
+def mulTS(p, e):#tuple by scalar
+    return (p[0]*e,p[1]*e,p[2]*e)
 
 def extractNidusSphere(img, radius):
     '''Perform binary closing and opening to extract avm nidus from segmentation
@@ -182,6 +191,31 @@ def getAdjacentPoints(skeleton, v):
         elif (skeleton.GetPoint(skeleton.GetCell(c).GetPointId(skeleton.GetCell(c).GetNumberOfPoints()-1)) == skeleton.GetPoint(v)): #last point, find second to last point
             adjacent.append(skeleton.GetPoint(skeleton.GetCell(c).GetPointId(skeleton.GetCell(c).GetNumberOfPoints()-2)))
     return adjacent
+
+
+def getAdjacentPointsExtended(skeleton, v, arrayname = "Radius"):
+    '''Creates a list with the points connected to v, but considering the line extended according to radius | edt
+    skeleton: polydata with lines and points
+    v: point id'''
+    adjacent = []
+    cellIds = vtk.vtkIdList()
+    p1 = skeleton.GetPoint(v)
+    skeleton.GetPointCells(v, cellIds) #get cells incident
+    incident = [cellIds.GetId(c) for c in range(cellIds.GetNumberOfIds())]
+    for c in incident:
+        if (skeleton.GetPoint(skeleton.GetCell(c).GetPointId(0)) == skeleton.GetPoint(v)): #first point, find next point
+            p2id = skeleton.GetCell(c).GetPointId(1)
+        elif (skeleton.GetPoint(skeleton.GetCell(c).GetPointId(skeleton.GetCell(c).GetNumberOfPoints()-1)) == skeleton.GetPoint(v)): #last point, find second to last point
+            p2id = skeleton.GetCell(c).GetPointId(skeleton.GetCell(c).GetNumberOfPoints()-2)
+        p2 = skeleton.GetPoint(p2id)
+        lenAB = math.sqrt(pow(p1[0] - p2[0], 2.0) + pow(p1[1] - p2[1], 2.0) + pow(p1[2] - p2[2], 2.0))
+        vectAB = minus(p2, p1)
+        normAB = divTS(vectAB, lenAB)
+        extendto = skeleton.GetPointData().GetArray(arrayname).GetValue(p2id)
+        p3 = sum(mulTS(normAB, extendto), p1)
+        adjacent.append(p3)
+    return adjacent
+
 
 def getFurthestDist(skeleton, v):
     '''skeleton: polydata with lines and points
