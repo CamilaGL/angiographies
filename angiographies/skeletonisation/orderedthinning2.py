@@ -1,6 +1,7 @@
 """
 Based on the thinning algorithm loop described by Larrabide 2007 
 Voxel consideration order is given by the squared euclidean distance to the nearest background voxel
+edt: https://github.com/seung-lab/euclidean-distance-transform-3d
 
 Running environment requirements: 
 
@@ -18,7 +19,7 @@ import edt
 import heapq
 from angiographies.utils.iositk import readNIFTIasSITK, writeSITK
 from angiographies.utils.formatconversionsitk import numpyToSITK, SITKToNumpy
-from angiographies.utils.imageprocessing import binClosing
+from angiographies.utils.imageprocessing import binClosing, gaussianSmoothDiscrete
 
 # --------- ordered thinning with different criterions ---------------
 
@@ -46,12 +47,17 @@ def binarySegmToBinarySkeleton(img):
     return thinnedsitk
 
 
-def binarySegmToBinarySkeleton3(img):
+def binarySegmToBinarySkeleton3(img, thresh=None):
     '''Binary thinning. Order is squared euclidean distance to background.
     img: sitk image
     returns sitk image'''
     
     npimg = SITKToNumpy(img)
+    print(npimg.dtype)
+    if thresh is not None:
+        npimg[npimg<=thresh]=0
+        npimg[npimg>thresh]=1
+        npimg = npimg.astype(np.int8)
     #npimg = np.array([[[0,1,1],[0,1,1],[1,1,1]],[[0,1,0],[0,1,1],[0,1,1]],[[0,1,0],[0,1,0],[1,1,1]]], dtype=np.ubyte)
     #weighted = np.zeros(npimg.shape, dtype=np.intc) #here we're going to be assigning the order priority to our foreground voxels
     npimgpadded = np.pad(npimg, 1)
@@ -767,7 +773,7 @@ def newOrderedThinning6(img, weightedImg):
 def getWeightedImageEuclideanDistanceTransform(img):
     '''Generate a new image where the foreground voxels are weighted according to the squared euclidean distance
     (relevant for their ordered consideration to perform a binary thinning)'''
-    profiled = edt.edtsq(np.ascontiguousarray(img), black_border=True, parallel=1)
+    profiled = edt.edtsq(np.ascontiguousarray(img), black_border=True, parallel=1, order="K")
     return profiled
 
 
@@ -862,6 +868,7 @@ def main():
     parser.add_argument("--closing", help="perform morphological closing", action="store_true", required=False, default=False)
     parser.add_argument("-rp", help="repeat closing", default=1, type=int, required=False)
     parser.add_argument("-rad", help="repeat closing", default=2, type=int, required=False)
+    parser.add_argument("--gaussian", help="perform gaussian smoothing", action="store_true", required=False, default=False)
     #parser.add_argument("--connected", help="extract connected components", action="store_true", required=False, default=False)
 
 
@@ -871,17 +878,21 @@ def main():
     closing = args.closing
     rp = args.rp
     rad = args.rad
+    gaussian = args.gaussian
     #conncomp = args.connected
     print("Starting thinning")
     img = readNIFTIasSITK(inputf)
     if closing:
         for _ in range(rp):
             img = binClosing(img, int(rad))
-    thinnedsitk = binarySegmToBinarySkeleton3(img)
+    if gaussian:
+        img = gaussianSmoothDiscrete(img)
+        thinnedsitk = binarySegmToBinarySkeleton3(img, 0.25)
+    else:
+        thinnedsitk = binarySegmToBinarySkeleton3(img)
     print("saving")
     print(type(thinnedsitk))
     writeSITK(thinnedsitk,outputf)
-
 
 
 if __name__ == "__main__":
