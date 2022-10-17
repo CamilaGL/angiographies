@@ -1,5 +1,6 @@
 import SimpleITK as sitk
 import numpy
+import math
 from angiographies.utils.formatconversionsitk import SITKToNumpy
 
 
@@ -55,3 +56,20 @@ def getLargestConnected(inputImage):
     print(v)
     return thresholdImageSITK(inputImageconn, v, v)
 
+
+def gaussianSmoothRecursive(binImg, m=1.7):
+    spa = binImg.GetSpacing()[0]
+    gaussian = sitk.SmoothingRecursiveGaussianImageFilter()
+    gaussian.SetSigma(spa*m)
+    blurredImage = gaussian.Execute(binImg)
+    return blurredImage
+
+
+def gaussianSmoothDiscrete(binImg, m=1.7):
+    #spa = binImg.GetSpacing()[0]
+    gaussian = sitk.DiscreteGaussianImageFilter()
+    gaussian.SetVariance(math.sqrt(m))
+    gaussian.SetMaximumKernelWidth(1)
+    gaussian.SetUseImageSpacing(True)
+    blurredImage = gaussian.Execute(sitk.Cast(binImg, sitk.sitkFloat32))
+    return blurredImage
