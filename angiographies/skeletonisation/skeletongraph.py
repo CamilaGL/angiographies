@@ -462,7 +462,7 @@ def binarySkeletonToGraphReOptimised2(img):
     vertextype = vtk.vtkFloatArray()
     vertextype.SetName('VertexType')
     edt = vtk.vtkFloatArray()
-    edt.SetName('EDT')
+    edt.SetName('Radius') #save here squared euclidean distance
     edgetype = vtk.vtkFloatArray()
     edgetype.SetName('EdgeType')
     graph.SetPoints(vertexes)
@@ -510,7 +510,7 @@ def binarySkeletonToGraphReOptimised2(img):
             #print("a ver si creo uno, no sé")
             id = vertexes.InsertNextPoint([x,y,z]) #create vertex with the correct coordinate order
             vertextype.InsertNextValue(0) #create as L-vertex
-            edt.InsertNextValue(img[z,y,x])
+            edt.InsertNextValue(math.sqrt(img[z,y,x]))
             pointIds[z,y,x] = id
             lineIds[id] = {} #initiate a new line dict for this point
 
@@ -538,7 +538,7 @@ def binarySkeletonToGraphReOptimised2(img):
             if id2 == -1: #create vertex
                 id2 = vertexes.InsertNextPoint([i+minbias[2],j+minbias[1],k+minbias[0]]) #create vertex
                 vertextype.InsertNextValue(0) #create as L-vertex
-                edt.InsertNextValue(img[k+minbias[0],j+minbias[1],i+minbias[2]])
+                edt.InsertNextValue(math.sqrt(img[k+minbias[0],j+minbias[1],i+minbias[2]]))
                 pointIds[k+minbias[0],j+minbias[1],i+minbias[2]] = id2 #saving it on the pointmatrix
                 lineIds[id2] = {} #initiate a new line dict for this point
             
