@@ -451,7 +451,7 @@ def binarySkeletonToGraphReOptimised(img):
     return graph
 
 
-def binarySkeletonToGraphReOptimised2(img):
+def binarySkeletonToGraphReOptimised2(img, gray = False):
     '''Given a binary thinning/skeleton, create a graph where voxels are nodes and neighbour voxels are connected by edges,'''
     #binary img in numpy (remember this means the coordinates are zyx and not xyz, so all operations with numpy are in zyx and the ones with vtk are xyz)
 
@@ -461,8 +461,9 @@ def binarySkeletonToGraphReOptimised2(img):
     graph = vtk.vtkPolyData()
     vertextype = vtk.vtkFloatArray()
     vertextype.SetName('VertexType')
-    edt = vtk.vtkFloatArray()
-    edt.SetName('Radius') #save here squared euclidean distance -- THIS IS NOT RADIUS. Array name is set for ease of usage with vmtknetworkextraction
+    if not gray:
+        edt = vtk.vtkFloatArray()
+        edt.SetName('Radius') #save here squared euclidean distance -- THIS IS NOT RADIUS. Array name is set for ease of usage with vmtknetworkextraction
     edgetype = vtk.vtkFloatArray()
     edgetype.SetName('EdgeType')
     graph.SetPoints(vertexes)
@@ -510,7 +511,8 @@ def binarySkeletonToGraphReOptimised2(img):
             #print("a ver si creo uno, no sé")
             id = vertexes.InsertNextPoint([x,y,z]) #create vertex with the correct coordinate order
             vertextype.InsertNextValue(0) #create as L-vertex
-            edt.InsertNextValue(math.sqrt(img[z,y,x]))
+            if not gray:
+                edt.InsertNextValue(math.sqrt(img[z,y,x]))
             pointIds[z,y,x] = id
             lineIds[id] = {} #initiate a new line dict for this point
 
@@ -538,7 +540,8 @@ def binarySkeletonToGraphReOptimised2(img):
             if id2 == -1: #create vertex
                 id2 = vertexes.InsertNextPoint([i+minbias[2],j+minbias[1],k+minbias[0]]) #create vertex
                 vertextype.InsertNextValue(0) #create as L-vertex
-                edt.InsertNextValue(math.sqrt(img[k+minbias[0],j+minbias[1],i+minbias[2]]))
+                if not gray:
+                    edt.InsertNextValue(math.sqrt(img[k+minbias[0],j+minbias[1],i+minbias[2]]))
                 pointIds[k+minbias[0],j+minbias[1],i+minbias[2]] = id2 #saving it on the pointmatrix
                 lineIds[id2] = {} #initiate a new line dict for this point
             
@@ -567,7 +570,8 @@ def binarySkeletonToGraphReOptimised2(img):
         
     
     graph.GetPointData().AddArray(vertextype)
-    graph.GetPointData().AddArray(edt)
+    if not gray:
+        graph.GetPointData().AddArray(edt)
     graph.GetCellData().AddArray(edgetype)
     return graph
 
@@ -799,13 +803,13 @@ def binSketoSke(inputImage):
     return skeleton, graph
 
 
-def binSketoSke2(inputImage):
+def binSketoSke2(inputImage, gray = False):
     '''Given a binary thinning/skeletonisation, create a skeleton consisting of vertexes and edges.
     inputImage: numpy matrix
     returns two vtkpolydata'''
     
     start_time = time.time()
-    graph = binarySkeletonToGraphReOptimised2(inputImage)
+    graph = binarySkeletonToGraphReOptimised2(inputImage, gray)
     print("--- binary skeleton to graph took %s seconds ---" % (time.time() - start_time))
 
     start_time = time.time()    
@@ -837,17 +841,19 @@ def main():
     parser.add_argument("-ofile", help="path to output folder+case for skeleton", default="", required=True)
     parser.add_argument("-ofilegraph", help="path to output folder+case for graph", default=None, required=False)
     parser.add_argument("-ofileinfo", help="path to output folder+case for origin and spacing info", default=None, required=False)
+    #TO DO: add flag to skeletonise w grayscale instead of checking for "gray" in inputf
 
     args = parser.parse_args()
     inputf = args.ifile
     outputf = args.ofile
     outputfgraph = args.ofilegraph
     inputfgraph = args.ifilegraph
+    gray = True if "gray" in inputf else False
 
     if inputfgraph is None:
         img = readNIFTIasSITK(inputf)
         npimg = SITKToNumpy(img)
-        ske, graph = binSketoSke2(npimg)
+        ske, graph = binSketoSke2(npimg, gray)
         if outputfgraph is not None:
             writeVTKPolydataasVTP(graph, outputfgraph)
         writeVTKPolydataasVTP(ske, outputf)
