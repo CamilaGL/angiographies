@@ -22,6 +22,7 @@ import argparse
 import collections
 import math
 import time
+import os
 #from skimage.morphology import convex_hull_image
 from angiographies.utils.iositk import readNIFTIasSITK, writeSITK
 from angiographies.utils.iojson import writejson, readjson
@@ -311,7 +312,7 @@ def findAVMSpiders(skeleton, method="spheres"):
             avmPoints[k].append(getFurthestDist(skeleton, k))
     elif method == "hull":
         for k in avmPoints:
-            avmPoints[k].extend(getAdjacentPoints(skeleton, k))
+            avmPoints[k].extend(getAdjacentPointsExtended(skeleton, k))
         #get all points connected to sphere centers which will allow to find convex hull later
     #return central points and sphere radius
 
@@ -407,8 +408,9 @@ def main():
         writeSITK(nidus, outputf)
     else:
         img = readVTPPolydata(inputf)
+        print(os.path.sep)
         #print(inputf[:-19]+".json")
-        infodict = readjson(inputf[:-19]+".json") if "vmtk" in inputf else readjson(inputf[:-12]+".json")
+        infodict = readjson(inputf[:inputf.rindex(os.path.sep)+5]+".json") #get json
         print(infodict)
         method = "spheres" if spidersphere else "hull"
         numpyshape = infodict["shape"][::-1]
