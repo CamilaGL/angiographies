@@ -462,7 +462,7 @@ def binarySkeletonToGraphReOptimised2(img):
     vertextype = vtk.vtkFloatArray()
     vertextype.SetName('VertexType')
     edt = vtk.vtkFloatArray()
-    edt.SetName('Radius') #save here squared euclidean distance
+    edt.SetName('Radius') #save here squared euclidean distance -- THIS IS NOT RADIUS. Array name is set for ease of usage with vmtknetworkextraction
     edgetype = vtk.vtkFloatArray()
     edgetype.SetName('EdgeType')
     graph.SetPoints(vertexes)
