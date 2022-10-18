@@ -1,6 +1,16 @@
+"""
+Merge polydata of lines into polylines
+
+Running environment requirements: 
+
+    numpy
+    vtk
+
+"""
+
 import vtk
 import argparse
-from angiographies.utils.io import writeVTKPolydataasVTP,readVTPPolydata
+from angiographies.utils.iovtk import writeVTKPolydataasVTP,readVTPPolydata
 
 
 def tracePolyline(inputske, vertextype, start, next, linesstillleft, pointsstillleft):
@@ -69,8 +79,8 @@ def skeToPolyline(inputske):
 
     skepoly.SetPoints(inputske.GetPoints())
     skepoly.SetLines(edges)
-    skepoly.GetPointData().AddArray(vertextype)
-
+    for i in range(inputske.GetPointData().GetNumberOfArrays()): #copy all arrays with vertex information
+        skepoly.GetPointData().AddArray(inputske.GetPointData().GetAbstractArray(i))
     return skepoly
 
 

@@ -1,9 +1,19 @@
+"""
+vmtknetworkextraction from binary segmentation
+
+Running environment requirements: 
+
+    numpy
+    vmtk
+    vtk
+
+"""
+
 import vtk
 from vmtk import vmtkscripts
 import argparse
 from collections import OrderedDict
-from angiographies.utils.io import readNIFTIasSITK, readNIFTIasVTK, writeVTKPolydataasVTP, writejson
-from angiographies.utils.formatconversion import numpyToSITK, SITKToNumpy
+from angiographies.utils.iovtk import readNIFTIasVTK, writeVTKPolydataasVTP
 
 
 def segmentationToClippedMesh(inputImage, dist):
@@ -119,7 +129,7 @@ def main():
 
     parser.add_argument("-ifile", help="path to segmentation", default="", required=True)
     parser.add_argument("-ofile", help="path to output", default="", required=True)
-    parser.add_argument("-ofileinfo", help="path to output json with origin+spacing", default="", required=False)
+    parser.add_argument("-ofileinfo", help="path to output json with origin+spacing", default=None, required=False)
 
     args = parser.parse_args()
     inputf = args.ifile
@@ -129,17 +139,16 @@ def main():
     img = readNIFTIasVTK(inputf)
     origin = img.GetOrigin()
     spacing = img.GetSpacing()
-
     network = getvmtkNetwork(img)
 
     writeVTKPolydataasVTP(network, outputf)
 
-    volumeInfo = OrderedDict()
-    volumeInfo["origin"] = origin
-    volumeInfo["spacing"] = spacing
+    # volumeInfo = OrderedDict()
+    # volumeInfo["origin"] = origin
+    # volumeInfo["spacing"] = spacing
 
-    if outputjson is not None:
-        writejson(volumeInfo,outputjson)
+    # if outputjson is not None:
+    #     writejson(volumeInfo,outputjson)
 
 
 

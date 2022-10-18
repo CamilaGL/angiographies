@@ -1,3 +1,13 @@
+"""
+Some vtk polydata editing tools to work with vmtknetworkextraction result
+
+Running environment requirements: 
+
+    numpy
+    vtk
+
+"""
+
 import vtk
 import os
 import glob
@@ -5,8 +15,7 @@ import math
 from itertools import chain
 import argparse
 
-from angiographies.utils.io import readNIFTIasSITK, readNIFTIasVTK, writeVTKPolydataasVTP, writejson, readVTPPolydata
-from angiographies.utils.formatconversion import numpyToSITK, SITKToNumpy
+from angiographies.utils.iovtk import writeVTKPolydataasVTP, readVTPPolydata
 
 
 def uniquePoint(theCenterlines, pId):

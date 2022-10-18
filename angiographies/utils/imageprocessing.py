@@ -1,12 +1,16 @@
 import SimpleITK as sitk
 import numpy
-from angiographies.utils.formatconversion import numpyToSITK, SITKToNumpy
+import math
+from angiographies.utils.formatconversionsitk import SITKToNumpy
 
 
 
-def binClosing(binImg):
-    vectorRadius=(1,1,1)
+def binClosing(binImg, rad):
+    vectorRadius=(rad,rad,rad)
     kernel=sitk.sitkBall
+    print(binImg.GetPixelIDTypeAsString())
+    if ("integer" not in binImg.GetPixelIDTypeAsString()):
+        return sitk.BinaryMorphologicalClosing(sitk.Cast(binImg, sitk.sitkInt32),vectorRadius, kernel)
     return sitk.BinaryMorphologicalClosing(binImg,vectorRadius, kernel)
 
 def thresholdImageSITK(inputImage, lt, ut):
@@ -52,3 +56,20 @@ def getLargestConnected(inputImage):
     print(v)
     return thresholdImageSITK(inputImageconn, v, v)
 
+
+def gaussianSmoothRecursive(binImg, m=1.7):
+    spa = binImg.GetSpacing()[0]
+    gaussian = sitk.SmoothingRecursiveGaussianImageFilter()
+    gaussian.SetSigma(spa*m)
+    blurredImage = gaussian.Execute(binImg)
+    return blurredImage
+
+
+def gaussianSmoothDiscrete(binImg, m=1.7):
+    #spa = binImg.GetSpacing()[0]
+    gaussian = sitk.DiscreteGaussianImageFilter()
+    gaussian.SetVariance(math.sqrt(m))
+    gaussian.SetMaximumKernelWidth(1)
+    gaussian.SetUseImageSpacing(True)
+    blurredImage = gaussian.Execute(sitk.Cast(binImg, sitk.sitkFloat32))
+    return blurredImage

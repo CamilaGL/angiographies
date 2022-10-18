@@ -1,11 +1,21 @@
-# This is based on the thinning algorithm described here 10.1109/DICTA.2009.13 MINUS the templates (potential TO DO?)
-# And the voxel consideration order is given by the squared euclidean distance to the nearest background voxel
+"""
+This is based on the thinning algorithm described here 10.1109/DICTA.2009.13 MINUS the templates (potential TO DO?)
+And the voxel consideration order is given by the squared euclidean distance to the nearest background voxel
+Exceptionally not optimal
+
+Running environment requirements: 
+
+    numpy
+    sitk
+
+"""
 
 import numpy as np
 import argparse
 import time
-from angiographies.utils.io import readNIFTIasSITK, writeSITK, writeVTKPolydataasVTP, readVTPPolydata
-from angiographies.utils.formatconversion import numpyToSITK, SITKToNumpy
+#from scipy import ndimage
+from angiographies.utils.iositk import readNIFTIasSITK, writeSITK
+from angiographies.utils.formatconversionsitk import numpyToSITK, SITKToNumpy
 from angiographies.utils.imageprocessing import binClosing
 
 # --------- ordered thinning with different criterions ---------------
@@ -228,6 +238,14 @@ def newOrderedThinning(img, weightedImg):
         marked = []
     #print(img)
 
+
+# def getWeightedImageEuclideanScipy(img):
+#     '''Generate a new image where the foreground voxels are weighted according to the squared euclidean distance
+#     (relevant for their ordered consideration to perform a binary thinning)'''
+#     profiled = ndimage.distance_transform_edt(img)
+#     return profiled
+
+
 def getWeightedImageEuclidean(img, profiled):
     '''Generate a new image where the foreground voxels are weighted according to the squared euclidean distance
     (relevant for their ordered consideration to perform a binary thinning)'''
@@ -318,6 +336,8 @@ def main():
     parser.add_argument("-ofile", help="path to output folder+case", default="", required=True)
     parser.add_argument("-gsfile", help="path to original grayscale image", default=None, required=False)
     parser.add_argument("--closing", help="perform morphological closing", action="store_true", required=False, default=False)
+    parser.add_argument("-rp", help="repeat closing", default=1, type=int, required=False)
+    parser.add_argument("-rad", help="repeat closing", default=1, type=int, required=False)
     #parser.add_argument("--connected", help="extract connected components", action="store_true", required=False, default=False)
 
 
@@ -326,12 +346,15 @@ def main():
     outputf = args.ofile
     inputgrayscale = args.gsfile
     closing = args.closing
+    rp = args.rp
+    rad = args.rad
     #conncomp = args.connected
     print("Starting thinning")
     img = readNIFTIasSITK(inputf)
     imgorig = readNIFTIasSITK(inputgrayscale) if inputgrayscale is not None else None
     if closing:
-        img = binClosing(img)
+        for _ in range(rp):
+            img = binClosing(img, 2)
     thinnedsitk = binarySegmToBinarySkeleton(img, imgorig)
 
     writeSITK(thinnedsitk,outputf)
