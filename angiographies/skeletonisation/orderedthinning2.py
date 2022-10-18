@@ -47,7 +47,7 @@ def binarySegmToBinarySkeleton(img):
     return thinnedsitk
 
 
-def binarySegmToBinarySkeleton3(img, thresh=None):
+def binarySegmToBinarySkeleton3(img, inputgrayscale = None, thresh=None):
     '''Binary thinning. Order is squared euclidean distance to background.
     img: sitk image
     returns sitk image'''
@@ -60,16 +60,30 @@ def binarySegmToBinarySkeleton3(img, thresh=None):
         npimg = npimg.astype(np.int8)
     #npimg = np.array([[[0,1,1],[0,1,1],[1,1,1]],[[0,1,0],[0,1,1],[0,1,1]],[[0,1,0],[0,1,0],[1,1,1]]], dtype=np.ubyte)
     #weighted = np.zeros(npimg.shape, dtype=np.intc) #here we're going to be assigning the order priority to our foreground voxels
-    npimgpadded = np.pad(npimg, 1)
+    #npimgpadded = np.pad(npimg, 1)
     #print("orig size", npimg.shape)
     #print("padded size", npimgpadded.shape)
     #weighted = None
     start_time = time.time()
-    print("Euclidean weighting")
-    weighted = getWeightedImageEuclideanDistanceTransform(npimgpadded)
-    print("--- %s seconds ---" % (time.time() - start_time))
-    #print("weighted size", weighted.shape)
-
+    npimgpadded = np.pad(npimg, 1)
+    if inputgrayscale is None:
+        print("Euclidean weighting")
+        weighted = getWeightedImageEuclideanDistanceTransform(npimgpadded)
+        print("--- %s seconds ---" % (time.time() - start_time))
+        #print("weighted size", weighted.shape)
+    else:
+        print("Grayscale weighting")
+        npimgorig = SITKToNumpy(inputgrayscale)
+        minval = np.amin(npimgorig)
+        print(npimgorig[1,1,1])
+        print(minval)
+        npimgorig = npimgorig - minval + 1
+        print(npimgorig[1,1,1])
+        npimgorigpadded = np.pad(npimgorig, 1)
+        #weighted = np.pad(weighted, 1)
+        if npimg.shape == npimgorig.shape: #check segmentation and grayscale images have same dimentions
+            weighted = np.where(npimgpadded, npimgorigpadded, 0)
+        print("--- %s seconds ---" % (time.time() - start_time))
     newOrderedThinning6(npimgpadded, weighted) #we're editing npimg here!
     print("--- %s seconds ---" % (time.time() - start_time))
     
@@ -785,12 +799,14 @@ def getWeightedImageEuclidean(img, profiled):
         profiled[x,y,z] = getMinEuclideanToBackground(img, (x,y,z))
         #profiled[x,y,z] = getProfileMeasure(img, (x,y,z), getMinEuclideanToBackground(img, (x,y,z)))
 
-def getWeightedImageGrayscale(img, original, profiled):
+def getWeightedImageGrayscale(img, original):
     '''Generate a new image where the foreground voxels are assigned their (original) grayscale value
     (relevant for their ordered consideration to perform a binary thinning)'''
+    weighted = np.zeros(img.shape, dtype=np.intc)
     specified = np.nonzero(img) #get nonzero voxels in segmentation
     for (x,y,z) in zip(*specified): #iterate over nonzero voxels
-        profiled[x,y,z] = original[x,y,z]
+        weighted[x,y,z] = original[x,y,z]
+    return weighted
 
 def getWeightedProfileMeasure(img, profiled):
     '''Generate a new image where the foreground voxels are weighted according to the profile measure proposed by BABIN Thesis
@@ -865,6 +881,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-ifile", help="path to case segmentation", default="", required=True)
     parser.add_argument("-ofile", help="path to output folder+case", default="", required=True)
+    parser.add_argument("-gsfile", help="path to original grayscale image", default=None, required=False)
     parser.add_argument("--closing", help="perform morphological closing", action="store_true", required=False, default=False)
     parser.add_argument("-rp", help="repeat closing", default=1, type=int, required=False)
     parser.add_argument("-rad", help="repeat closing", default=2, type=int, required=False)
@@ -876,20 +893,22 @@ def main():
     inputf = args.ifile
     outputf = args.ofile
     closing = args.closing
+    inputgrayscale = args.gsfile
     rp = args.rp
     rad = args.rad
     gaussian = args.gaussian
     #conncomp = args.connected
     print("Starting thinning")
     img = readNIFTIasSITK(inputf)
+    imgorig = readNIFTIasSITK(inputgrayscale) if inputgrayscale is not None else None
     if closing:
         for _ in range(rp):
             img = binClosing(img, int(rad))
     if gaussian:
         img = gaussianSmoothDiscrete(img)
-        thinnedsitk = binarySegmToBinarySkeleton3(img, 0.25)
+        thinnedsitk = binarySegmToBinarySkeleton3(img, imgorig, 0.25)
     else:
-        thinnedsitk = binarySegmToBinarySkeleton3(img)
+        thinnedsitk = binarySegmToBinarySkeleton3(img, imgorig)
     print("saving")
     print(type(thinnedsitk))
     writeSITK(thinnedsitk,outputf)
