@@ -1,49 +1,44 @@
 # angiographies
 
-This readme is just to help me organise this mess of a repository.
+Processing angiographies.
 
-## Getting Started
+# Conda environments
 
-Please be sure to set up the required tools before trying to run the scripts.
+## angiographies
 
-## Packages
+### Created with:
+conda create --name angiographies<br>
+conda install python=3.6 scikit-image simpleitk vmtk -c simpleitk -c vmtk<br>
+conda install llvm=3.3<br>
+pip install -e . #to install project <br>
 
-First of all, you should install anaconda.
-Up to date, the following sets of libraries and toolkits have been established:
+## edt
 
+### Created with:
+edt (euclidean distance transform)<br>
+conda create –name edt<br>
+conda install edt -c conda-forge python=3.9<br>
+conda install simpleitk -c simpleitk<br>
+conda install vtk<br>
+conda install vmtk -c conda-forge<br>
+pip install -e . #to install project <br>
 
-### vtk vmtk simpleitk scikit-image
+## edt2
 
-#### Installation
-
-conda create --name angiographies
-
-conda install python=3.6 scikit-image simpleitk vmtk -c simpleitk -c vmtk
-
-cd <project folder>
-
-pip install -e .
-
-conda install llvm=3.3
-
-
-#### Usage
-
-If on VisualStudioCode, it is possible to simply pick the conda environment on which the script is going to run.
+### Created with:<br>
+conda create --name edt2 --clone edt<br>
+conda install scikit-image -c conda-forge<br>
 
 
-## Contributing
+# Usage
 
+## Thinning / skeletonisation
 
-## Versioning
+## vmtknetworkextraction
+
+## Nidus extraction
 
 
 ## Authors
-
-
-## License
-
-
-## Acknowledgments
-
+Camila García
 
