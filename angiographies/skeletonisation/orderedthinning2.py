@@ -47,12 +47,10 @@ def binarySegmToBinarySkeleton(img):
     return thinnedsitk
 
 
-def binarySegmToBinarySkeleton3(img, inputgrayscale = None, thresh=None):
+def binarySegmToBinarySkeleton3(npimg, npimgorig = None, thresh=None):
     '''Binary thinning. Order is squared euclidean distance to background.
-    img: sitk image
-    returns sitk image'''
-    
-    npimg = SITKToNumpy(img)
+    img: numpy image
+    returns numpy image'''
     print(npimg.dtype)
     if thresh is not None:
         npimg[npimg<=thresh]=0
@@ -66,14 +64,13 @@ def binarySegmToBinarySkeleton3(img, inputgrayscale = None, thresh=None):
     #weighted = None
     start_time = time.time()
     npimgpadded = np.pad(npimg, 1)
-    if inputgrayscale is None:
+    if npimgorig is None:
         print("Euclidean weighting")
         weighted = getWeightedImageEuclideanDistanceTransform(npimgpadded)
         print("--- %s seconds ---" % (time.time() - start_time))
         #print("weighted size", weighted.shape)
     else:
         print("Grayscale weighting")
-        npimgorig = SITKToNumpy(inputgrayscale)
         minval = np.amin(npimgorig)
         print(npimgorig[1,1,1])
         print(minval)
@@ -89,11 +86,7 @@ def binarySegmToBinarySkeleton3(img, inputgrayscale = None, thresh=None):
     
     distske = np.where(npimgpadded, weighted, 0)
 
-    thinnedsitk = numpyToSITK(distske[1:-1,1:-1,1:-1])
-    thinnedsitk.SetOrigin(img.GetOrigin())
-    thinnedsitk.SetSpacing(img.GetSpacing())
-    thinnedsitk.SetDirection(img.GetDirection())
-    return thinnedsitk
+    return distske[1:-1,1:-1,1:-1]
 
 
 def intersection(lst1, lst2):
@@ -900,17 +893,23 @@ def main():
     #conncomp = args.connected
     print("Starting thinning")
     img = readNIFTIasSITK(inputf)
-    imgorig = readNIFTIasSITK(inputgrayscale) if inputgrayscale is not None else None
+    npimgorig = SITKToNumpy(readNIFTIasSITK(inputgrayscale)) if inputgrayscale is not None else None
     if closing:
         for _ in range(rp):
             img = binClosing(img, int(rad))
     if gaussian:
         img = gaussianSmoothDiscrete(img)
-        thinnedsitk = binarySegmToBinarySkeleton3(img, imgorig, 0.25)
+        npimg = SITKToNumpy(img)
+        npthinned = binarySegmToBinarySkeleton3(npimg, npimgorig, 0.25)
     else:
-        thinnedsitk = binarySegmToBinarySkeleton3(img, imgorig)
-    print("saving")
-    print(type(thinnedsitk))
+        npimg = SITKToNumpy(img)
+        npthinned = binarySegmToBinarySkeleton3(npimg, npimgorig)
+
+    thinnedsitk = numpyToSITK(npthinned)
+    thinnedsitk.SetOrigin(img.GetOrigin())
+    thinnedsitk.SetSpacing(img.GetSpacing())
+    thinnedsitk.SetDirection(img.GetDirection())
+
     writeSITK(thinnedsitk,outputf)
 
 
