@@ -23,6 +23,7 @@ import collections
 import math
 import time
 import os
+import scipy
 #from skimage.morphology import convex_hull_image
 from angiographies.utils.iositk import readNIFTIasSITK, writeSITK
 from angiographies.utils.iojson import writejson, readjson
@@ -267,18 +268,57 @@ def multipleSpheres(imgshape, spheres, origin=(0,0,0), spacing=(1,1,1)):
         sphere(mask, rad[0], center)
     return mask
 
+def flood_fill_hull(image): 
+    '''image is a binary np matrix
+    returns a binary image with 1 on the voxels belonging to the convex hull, and the convex hull'''   
+    start_time = time.time()
+    points = np.transpose(np.where(image))
+    hull = scipy.spatial.ConvexHull(points)
+    deln = scipy.spatial.Delaunay(points[hull.vertices]) 
+    idx = np.stack(np.indices(image.shape), axis = -1)
+    out_idx = np.nonzero(deln.find_simplex(idx) + 1)
+    out_img = np.zeros(image.shape, np.int32)
+    out_img[out_idx] = 1
+    print("--- %s seconds ---" % (time.time() - start_time))
+    return out_img, hull
+
 def convexHull(imgshape, coords, origin=(0,0,0), spacing=(1,1,1)):
     '''image is a binary np matrix
     returns a binary image with true on the voxels that mark the center of the spiders and their adjacent points'''
-    print("convex hull delimiters")
-    mask = np.zeros(imgshape)
+    #print("convex hull delimiters")
+    mask = np.zeros(imgshape, np.int32)
     for k in coords:
         for p in coords[k]:
             mask[(divT(minus(p, origin),spacing))[::-1]] = 1
-    # hull = convex_hull_image(mask)
+    hull, _ = flood_fill_hull(mask)
+    return hull
 
+def bbox_3D(img):
+    '''img is a binary np matrix
+    returns bounding box limits that contain all nonzero voxels in img'''
+    r = np.any(img, axis=(1, 2))
+    c = np.any(img, axis=(0, 2))
+    z = np.any(img, axis=(0, 1))
+    rmin, rmax = np.where(r)[0][[0, -1]]
+    cmin, cmax = np.where(c)[0][[0, -1]]
+    zmin, zmax = np.where(z)[0][[0, -1]]
+    return rmin, rmax, cmin, cmax, zmin, zmax
+
+def boundingBox(imgshape, coords, origin=(0,0,0), spacing=(1,1,1)):
+    '''image is a binary np matrix
+    returns a binary image with true on the voxels bounding box containing the center of the spiders and their adjacent points'''
+    mask = np.zeros(imgshape, np.int32)
+    for k in coords:
+        for p in coords[k]:
+            mask[(divT(minus(p, origin),spacing))[::-1]] = 1
+    min_x, max_x, min_y, max_y, min_z, max_z = bbox_3D(mask)
+    #print(min_x, max_x, min_y, max_y, min_z, max_z)
+    # mask_x = (mask[:, 0] >= min_x) & (mask[:, 0] <= max_x)
+    # mask_y = (mask[:, 1] >= min_y) & (mask[:, 1] <= max_y)
+    # mask_z = (mask[:, 2] >= min_z) & (mask[:, 2] <= max_z)
+    mask = np.zeros(imgshape, np.int32)
+    mask[min_x:max_x+1, min_y:max_y+1, min_z:max_z+1] = 1
     return mask
-
 
 def findAVMSpiders(skeleton, method="spheres"):
     '''skeleton: vtkpolydata with unique points (each location has its own id)
@@ -297,7 +337,7 @@ def findAVMSpiders(skeleton, method="spheres"):
         if degree > maxdeg:
             avm=i #This one has the highest degree until now
             maxdeg=degree
-    print(vertexDict)    
+    #print(vertexDict)    
     #get potential avm nodes adjacent to the main node (highest deg) and their point coords
     avmPoints = {}
     avmPoints[avm] = [skeleton.GetPoint(avm)]#.append(avm)
@@ -309,28 +349,29 @@ def findAVMSpiders(skeleton, method="spheres"):
     #find max radius for sphere centered on each node
     if method=="spheres":
         for k in avmPoints:
-            avmPoints[k].append(getFurthestDist(skeleton, k))
-    elif method == "hull":
+            avmPoints[k].append(getFurthestDist(skeleton, k)) #return central points and sphere radius
+    elif method == "hull" or method == "boundingbox":
+        #get all points connected to sphere centers which will allow to find convex hull or bounding box later
         for k in avmPoints:
-            avmPoints[k].extend(getAdjacentPointsExtended(skeleton, k))
-        #get all points connected to sphere centers which will allow to find convex hull later
-    #return central points and sphere radius
-
+            avmPoints[k].extend(getAdjacentPointsExtended(skeleton, k)) 
     return avmPoints
     
-
 def avmMask(imgshape, origin, spacing, skeleton, method="spheres"):
     '''skeleton: vtkpolydata with unique points (each location has its own id)
     method: how to report the spiders (spheres: max radius for each sphere center, hull: all adjacent points to get convex hull)'''
-    print("doing spiders with method", method)
+    #print("doing spiders with method", method)
     spiders = findAVMSpiders(skeleton, method)
-    print(spiders)
-    print(method)
+    #print(spiders)
+    #print(method)
     if method=="spheres":
-        print("doing spheres")
+        #print("doing spheres")
         mask = multipleSpheres(imgshape, spiders, origin, spacing)
     elif method == "hull":
         mask = convexHull(imgshape, spiders, origin, spacing)
+    elif method == "boundingbox":
+        mask = boundingBox(imgshape, spiders, origin, spacing)
+    else:
+        print("Invalid method")
     return mask
 
 
@@ -384,35 +425,30 @@ def main():
     #parser.add_argument("-s", help="seed acquisition method", default="5", required=False)
     parser.add_argument("-ifile", help="path to segmentation or centerline", default="", required=True)
     parser.add_argument("-ofile", help="path to output mask", default="", required=True)
-    parser.add_argument("--sphere", help="process volume with chenoune sphere", action="store_true", required=False, default=False)
     parser.add_argument("-rad", help="sphere radius for morphological extraction", type=int, default=30, required=False)
-    parser.add_argument("--spidersphere", help="process volume with babin skeleton", action="store_true", required=False, default=False)
-    parser.add_argument("--spiderhull", help="process volume with babin skeleton", action="store_true", required=False, default=False)
+    parser.add_argument("-method", help="nidus extraction method (morphological, spheres, convexhull, boundingbox)", default="", required=True)
 
 
     args = parser.parse_args()
     inputf = args.ifile
     outputf = args.ofile
-    sphere = args.sphere
-    spidersphere = args.spidersphere
-    spiderhull = args.spiderhull
-    sphereradius = args.rad
+    rad = args.rad
+    method = args.method
 
-    if sphere:
+    if method == "morphological":
         print("morphological spheres")
         img = readNIFTIasSITK(inputf)
         print(img.GetOrigin())
         print(img.GetSize())
         print(SITKToNumpy(img).shape)
-        nidus = extractNidusSphere(img, sphereradius)#spheres
+        nidus = extractNidusSphere(img, rad)#spheres
         writeSITK(nidus, outputf)
     else:
         img = readVTPPolydata(inputf)
-        print(os.path.sep)
+        #print(os.path.sep)
         #print(inputf[:-19]+".json")
         infodict = readjson(inputf[:inputf.rindex(os.path.sep)+5]+".json") #get json
-        print(infodict)
-        method = "spheres" if spidersphere else "hull"
+        #print(infodict)
         numpyshape = infodict["shape"][::-1]
         numpyorigin = (0,0,0)
         numpyspa = infodict["spacing"] if "vmtk" in inputf else (1,1,1)
@@ -421,8 +457,8 @@ def main():
         masksitk = numpyToSITK(mask)
         masksitk.SetOrigin(infodict["origin"])
         masksitk.SetSpacing(infodict["spacing"])
-        print(masksitk.GetOrigin())
-        print(masksitk.GetSize())
+        #print(masksitk.GetOrigin())
+        #print(masksitk.GetSize())
         writeSITK(masksitk, outputf)
 
 
