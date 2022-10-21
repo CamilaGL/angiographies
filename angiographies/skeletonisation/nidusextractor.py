@@ -11,6 +11,7 @@ Running environment requirements:
     sitk
     vtk
     json
+    scipy
 
 
 """
@@ -77,7 +78,7 @@ def extractNidusSphere(img, radius):
     img: SITKImage
     radius: morphological sphere radius
     returns sitk binary image with nidus voxels True'''
-    print("nidus sphere")
+    #print("nidus sphere")
     start_time = time.time()
     #img = readNIFTIasSITK(case)
     #imthres = su.getLargestConnected(img) #extract largest island
@@ -89,13 +90,13 @@ def extractNidusSphere(img, radius):
     nidusitk = sitk.BinaryMorphologicalClosing(img, vectorRadius, kernel)
     nidusitk = sitk.BinaryMorphologicalOpening(nidusitk, vectorRadius, kernel)
     nidusitk = thresholdImageSITK(nidusitk, 1, 1)
-    print(type(npimg[0,0,0]))
-    print(type(SITKToNumpy(nidusitk)[0,0,0]))
+    #print(type(npimg[0,0,0]))
+    #print(type(SITKToNumpy(nidusitk)[0,0,0]))
     #realnidus = np.logical_and(npimg>0,(su.SITKToNumpy(nidusitk))>0)
     realnidus = npimg * SITKToNumpy(nidusitk)
-    print(collections.Counter(realnidus[373,152,:])) #255, 0 y 128 para las marcas
-    print(collections.Counter(npimg[373,152,:])) #255, 0 y 128 para las marcas
-    print(collections.Counter(SITKToNumpy(nidusitk)[373,152,:])) #255, 0 y 128 para las marcas
+    #print(collections.Counter(realnidus[373,152,:])) #255, 0 y 128 para las marcas
+    #print(collections.Counter(npimg[373,152,:])) #255, 0 y 128 para las marcas
+    #print(collections.Counter(SITKToNumpy(nidusitk)[373,152,:])) #255, 0 y 128 para las marcas
 
     #print(realnidus)
     #realnidusnp = realnidus.astype(int)
