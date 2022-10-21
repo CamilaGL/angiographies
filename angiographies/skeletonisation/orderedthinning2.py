@@ -51,7 +51,7 @@ def binarySegmToBinarySkeleton3(npimg, npimgorig = None, thresh=None):
     '''Binary thinning. Order is squared euclidean distance to background.
     img: numpy image
     returns numpy image'''
-    print(npimg.dtype)
+    #print(npimg.dtype)
     if thresh is not None:
         npimg[npimg<=thresh]=0
         npimg[npimg>thresh]=1
@@ -754,7 +754,7 @@ def newOrderedThinning6(img, weightedImg):
                 heapq.heappush(markedheap, (weightedImg[x,y,z],(x,y,z))) #add to heap with priority
                 queued[x,y,z] = 1 #mark as queued
 
-    print("--- selecting redundant boundary %s seconds ---" % (time.time() - innerloop_start_time))
+    #print("--- selecting redundant boundary %s seconds ---" % (time.time() - innerloop_start_time))
     outerloop_start_time = time.time()
     while markedheap: #heap not empty
         t = heapq.heappop(markedheap)[-1]
@@ -771,7 +771,7 @@ def newOrderedThinning6(img, weightedImg):
                                     heapq.heappush(markedheap, (weightedImg[t[0]+i,t[1]+j,t[2]+k],(t[0]+i,t[1]+j,t[2]+k)))
                                     queued[t[0]+i,t[1]+j,t[2]+k] = 1 #mark as queued
             
-    print("--- the other pass %s seconds ---" % (time.time() - outerloop_start_time))
+    #print("--- the other pass %s seconds ---" % (time.time() - outerloop_start_time))
     #print(img)
     print("--- the complete loop took %s seconds ---" % (time.time() - start_time))
 
