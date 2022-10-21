@@ -2,7 +2,7 @@ from setuptools import setup, find_namespace_packages
 
 setup(name='angiographies',
       packages=find_namespace_packages(include=["angiographies", "angiographies.*"]),
-      version='0.5.2',
+      version='0.5.3',
       description='My framework for processing brain angiographies.',
       url='https://github.com/CamilaGL/angiographies',
       author='Camila Garcia',
@@ -16,6 +16,7 @@ setup(name='angiographies',
               'angiographies_polydatamerger = angiographies.skeletonisation.polydatamerger:main',
               'angiographies_nidusextractor = angiographies.skeletonisation.nidusextractor:main',
               'angiographies_convexhull = angiographies.skeletonisation.convexhull:main',
+              'angiographies_pipeline = angiographies.skeletonisation.pipeline:main',
               
           ],
      }
