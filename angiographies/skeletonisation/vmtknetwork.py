@@ -12,6 +12,7 @@ Running environment requirements:
 import vtk
 from vmtk import vmtkscripts
 import argparse
+import time
 from collections import OrderedDict
 from angiographies.utils.iovtk import readNIFTIasVTK, writeVTKPolydataasVTP
 
@@ -113,13 +114,14 @@ def vmtkNetwork(input):
 def getvmtkNetwork(inputImage):
     '''
     inputImage: binary segmentation as vtkImage'''
+    start_time = time.time()
 
     #First create mesh and clip on z plane to create an opening
     clipped = segmentationToClippedMesh(inputImage,20.0)
     
     #Now create network
     network = vmtkNetwork(clipped)
-
+    print("--- %s seconds ---" % (time.time() - start_time))
     return network
 
 def main():
