@@ -1,5 +1,6 @@
 """
-Process angiography segmentation to perform nidus extraction
+Process angiography segmentation to perform nidus extraction.
+vmtknetworkextraction only works with vtk < 9.1 or a huge amount of RAM.
 
 Running environment requirements: 
 
@@ -78,20 +79,21 @@ def main():
                 origin = (0,0,0) #origin is the same for both (vmtk loses origin and skeleton doesn't have real world coordinates)
 
                 if method == "vmtk":
-                    print ("Doing vmtk extraction")
+                    print ("Using vmtk extraction")
                     filenameske = filename+"_"+method #this is our filename for the skeleton
-                    print("going to save here", os.path.join(outputpath, filenameske+".vtp"))
+                    print("Reading file here", os.path.join(outputpath, filenameske+".vtp"))
                     img = readNIFTIasVTK(segmfile) #read segmentation to get volume information. TODO: json
-                    print("Read file")
-                    shape = img.GetDimensions()
+                    shape = img.GetDimensions()[::-1]
                     spacing = img.GetSpacing()
                     if not overwrite and os.path.isfile(os.path.join(outputpath, filenameske+".vtp")): #we don't overwrite if skeleton exists
                         print ("Skeleton exists")
                         polydata = readVTPPolydata(os.path.join(outputpath, filenameske+".vtp"))
                     else:
-                        network = getvmtkNetwork(img)
-                        polydata = toUniquePointID(network)
-                        writeVTKPolydataasVTP(polydata, os.path.join(outputpath, filenameske+".vtp"))
+                        print("Vmtk network should be computed independently")
+                        return
+                        #network = getvmtkNetwork(img)
+                        #polydata = toUniquePointID(network)
+                        #writeVTKPolydataasVTP(polydata, os.path.join(outputpath, filenameske+".vtp"))
                     
                 else:
                     print ("Doing skeleton extraction", thinmethod)
@@ -121,14 +123,17 @@ def main():
 
                 for nidus in niduses:
                     if nidus == "spheres" or nidus == "boundingbox" or nidus == "hull":
-                        print ("Doing spiders with", nidus)
-                        filenamemask = filenameske+"_"+nidus
-                        print("Going to save mask here", os.path.join(outputpath, filenamemask+".vtp"))
-                        mask = avmMask(shape, origin, spacing, polydata, nidus) 
-                        masksitk = numpyToSITK(mask)
-                        masksitk.SetOrigin(img.GetOrigin())
-                        masksitk.SetSpacing(img.GetSpacing())
-                        writeSITK(masksitk, os.path.join(outputpath, filenamemask+".nii.gz"))
+                        if polydata is not None:
+                            print ("Doing spiders with", nidus)
+                            filenamemask = filenameske+"_"+nidus
+                            print("Going to save mask here", os.path.join(outputpath, filenamemask+".nii.gz"))
+                            mask = avmMask(shape, origin, spacing, polydata, nidus) 
+                            masksitk = numpyToSITK(mask)
+                            masksitk.SetOrigin(img.GetOrigin())
+                            masksitk.SetSpacing(img.GetSpacing())
+                            writeSITK(masksitk, os.path.join(outputpath, filenamemask+".nii.gz"))
+                        else:
+                            print("No polydata")
                     else:
                         print("Invalid spider method")
 
