@@ -5,7 +5,7 @@ Running environment requirements:
 
     numpy
     vmtk
-    vtk
+    vtk < 9.1 (memory explodes otherwise due to internal representation changes)
 
 """
 
