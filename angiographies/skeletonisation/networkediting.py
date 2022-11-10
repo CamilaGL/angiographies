@@ -374,6 +374,7 @@ def cleanNetwork(base_path, patient):
 def toUniquePointID(theCenterlines):
     '''Delete repeated point locations and keep one id per point.
     theCenterlines: vtkPolydata'''
+    radius = theCenterlines.GetPointData().GetArray(0)#.GetTuple(0))
     deleteablePoints = []
     vertextype = vtk.vtkFloatArray()
     vertextype.SetName('VertexType')
@@ -385,6 +386,9 @@ def toUniquePointID(theCenterlines):
             if theCenterlines.GetPoint(theCenterlines.GetCell(i).GetPointId(j)) in pointDict.keys():
                 deleteablePoints.append(theCenterlines.GetCell(i).GetPointId(j)) #we'll need to delete this point later
                 theCenterlines.ReplaceCellPoint(i, theCenterlines.GetCell(i).GetPointId(j), pointDict[theCenterlines.GetPoint(theCenterlines.GetCell(i).GetPointId(j))])
+                thisrad = radius.GetValue(theCenterlines.GetCell(i).GetPointId(j))
+                if thisrad > radius.GetValue(pointDict[theCenterlines.GetPoint(theCenterlines.GetCell(i).GetPointId(j))]): #keep largest radius
+                    radius.SetValue(pointDict[theCenterlines.GetPoint(theCenterlines.GetCell(i).GetPointId(j))],thisrad)
                 #theCenterlines.GetCell(i).GetPointIds().SetId(j, pointDict[theCenterlines.GetPoint(theCenterlines.GetCell(i).GetPointId(j))]) #change id so that it points to the point we care about
                 #pointDict[theCenterlines.GetCell(i).GetPoint(j)].append(theCenterlines.GetCell(i).GetPointId(j)) #add this ID
                 #vertextype.SetValue(theCenterlines.GetCell(i).GetPointId(j), 1)
