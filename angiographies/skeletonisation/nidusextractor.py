@@ -51,8 +51,9 @@ def sphere(mat, rad, c):
     for x in range(rad*2+1):
         for y in range(rad*2+1):
             for z in range(rad*2+1):
-                #pos = x * incs[0] + y * incs[1] + z * incs[2]
-                if inside_sphere(x, y, z, spcenter, rad) and (z+c[2]-rad<mat.shape[0] and y+c[1]-rad<mat.shape[1] and x+c[0]-rad<mat.shape[2]):
+                #inside sphere and inside matrix
+                if inside_sphere(x, y, z, spcenter, rad) and (z+c[2]-rad<mat.shape[0] and y+c[1]-rad<mat.shape[1] and x+c[0]-rad<mat.shape[2]) \
+                        and (z+c[2]-rad>=0 and y+c[1]-rad>=0 and x+c[0]-rad>=0):
                     mat[z+c[2]-rad,y+c[1]-rad,x+c[0]-rad] = 1
 
 def minus(p1, p2):
@@ -78,6 +79,7 @@ def extractNidusSphere(img, radius):
     img: SITKImage
     radius: morphological sphere radius
     returns sitk binary image with nidus voxels True'''
+    #diameter=4.66 #ICA diameter in mm
     #print("nidus sphere")
     start_time = time.time()
     #img = readNIFTIasSITK(case)
@@ -179,6 +181,33 @@ def extractNidusSphere(img, radius):
 #     io.writeSITK(extracted,inputf+"AVM_veinarteryBA"+os.path.sep+(((case.split(os.path.sep)[-1]).split(".")[0]))+".nii.gz")
 #     io.writeSITK(nidusitkconn,inputf+"AVM_nidusBA"+os.path.sep+(((case.split(os.path.sep)[-1]).split(".")[0]))+".nii.gz")
 
+def isSpiderCenter(skeleton, v):
+    '''Check if vertex is the center of a spider or just connected to many spurious endlines
+    skeleton: polydata with lines and points
+    v: point id'''
+
+    cellIds = vtk.vtkIdList()
+    skeleton.GetPointCells(v, cellIds) #get cells incident
+    degree=cellIds.GetNumberOfIds()
+    incident = [cellIds.GetId(c) for c in range(degree)]
+    numEndlines = 0
+    #Peek at the adjacent cells and check if they have endlines.
+    for c in incident:
+        cellIds2=vtk.vtkIdList()
+        if (skeleton.GetPoint(skeleton.GetCell(c).GetPointId(0)) == skeleton.GetPoint(v)): #center is first point, check last point is endline
+            skeleton.GetPointCells(skeleton.GetCell(c).GetPointId(skeleton.GetCell(c).GetNumberOfPoints()-1), cellIds2)
+            if cellIds2.GetNumberOfIds() <2: #the point only belongs to one cell
+                numEndlines=numEndlines+1
+        elif (skeleton.GetPoint(skeleton.GetCell(c).GetPointId(skeleton.GetCell(c).GetNumberOfPoints()-1)) == skeleton.GetPoint(v)): #center is last point, check first point is endline
+            skeleton.GetPointCells(skeleton.GetCell(c).GetPointId(0), cellIds2)
+            if cellIds2.GetNumberOfIds() <2: #the point only belongs to one cell
+                numEndlines=numEndlines+1
+
+    #if half my lines are endlines, this isn't an avm spider but a spurious branch end
+    if numEndlines>=degree/2:
+        return False
+    return True
+
 
 def getAdjacentPoints(skeleton, v):
     '''Creates a list with the points connected to v
@@ -255,17 +284,17 @@ def multipleSpheres(imgshape, spheres, origin=(0,0,0), spacing=(1,1,1)):
     spheres: dictionary with tuples where the first element is sphere center and second is sphere radius.
     origin: if sphere coords are in real world, indicate origin to translate to voxels.
     spacing: if sphere coords are in real world, indicate voxel spacing to translate to voxels.'''
-    print(imgshape)
-    print(origin)
+    #print(imgshape)
+    #print(origin)
     origin=(0,0,0) #origin always 0, because skeleton starts at 0 and vmtk seems to be ignoring the origin value?
     mask = np.zeros(imgshape)
     for k in spheres.keys():
-        print(k)
+        #print(k)
         center = divT(minus(spheres[k][0], origin),spacing)
-        print(spheres[k][0])
-        print(center)
+        #print(spheres[k][0])
+        #print(center)
         rad = divS(spheres[k][1], spacing)
-        print(rad)
+        #print(rad)
         sphere(mask, rad[0], center)
     return mask
 
@@ -290,7 +319,11 @@ def convexHull(imgshape, coords, origin=(0,0,0), spacing=(1,1,1)):
     mask = np.zeros(imgshape, np.int32)
     for k in coords:
         for p in coords[k]:
-            mask[(divT(minus(p, origin),spacing))[::-1]] = 1
+            pointcoord = (divT(minus(p, origin),spacing))[::-1]
+            p1 = min(pointcoord[0],mask.shape[0]-1) #check we're not out of bounds
+            p2 = min(pointcoord[1],mask.shape[1]-1)
+            p3 = min(pointcoord[2],mask.shape[2]-1)
+            mask[p1,p2,p3] = 1
     hull, _ = flood_fill_hull(mask)
     return hull
 
@@ -311,9 +344,13 @@ def boundingBox(imgshape, coords, origin=(0,0,0), spacing=(1,1,1)):
     mask = np.zeros(imgshape, np.int32)
     for k in coords:
         for p in coords[k]:
-            mask[(divT(minus(p, origin),spacing))[::-1]] = 1
+            pointcoord = (divT(minus(p, origin),spacing))[::-1]
+            p1 = min(pointcoord[0],mask.shape[0]-1) #check we're not out of bounds
+            p2 = min(pointcoord[1],mask.shape[1]-1)
+            p3 = min(pointcoord[2],mask.shape[2]-1)
+            mask[p1,p2,p3] = 1
     min_x, max_x, min_y, max_y, min_z, max_z = bbox_3D(mask)
-    #print(min_x, max_x, min_y, max_y, min_z, max_z)
+    print(min_x, max_x, min_y, max_y, min_z, max_z)
     # mask_x = (mask[:, 0] >= min_x) & (mask[:, 0] <= max_x)
     # mask_y = (mask[:, 1] >= min_y) & (mask[:, 1] <= max_y)
     # mask_z = (mask[:, 2] >= min_z) & (mask[:, 2] <= max_z)
@@ -321,7 +358,7 @@ def boundingBox(imgshape, coords, origin=(0,0,0), spacing=(1,1,1)):
     mask[min_x:max_x+1, min_y:max_y+1, min_z:max_z+1] = 1
     return mask
 
-def findAVMSpiders(skeleton, method="spheres"):
+def findAVMSpiders(skeleton, method="spheres", next=0):
     '''skeleton: vtkpolydata with unique points (each location has its own id)
     method: how to report the spiders (spheres: max radius for each sphere center, hull: all adjacent points to get convex hull)'''
 
@@ -333,47 +370,57 @@ def findAVMSpiders(skeleton, method="spheres"):
         cellIds = vtk.vtkIdList()
         skeleton.GetPointCells(i, cellIds) #get cells adjacent to our point
         degree = cellIds.GetNumberOfIds() #how many cells are incident to this point?
-        if degree > 5: #We consider this a potential avm point
+        if degree > 5 and isSpiderCenter(skeleton, i): #We consider this a potential avm point
             vertexDict[i] = degree  #I save this one
-        if degree > maxdeg:
-            avm=i #This one has the highest degree until now
-            maxdeg=degree
+            if degree > maxdeg:
+                avm=i #This one has the highest degree until now
+                maxdeg=degree
+    
     #print(vertexDict)    
     #get potential avm nodes adjacent to the main node (highest deg) and their point coords
-    avmPoints = {}
-    avmPoints[avm] = [skeleton.GetPoint(avm)]#.append(avm)
-    for k in vertexDict:
-        if areAdjacent(skeleton, avm, k) and k not in avmPoints: #check we haven't added it yet bc we'd have twice the same --- Not necessary anymore
-            #avmNodes.append(k)
-            avmPoints[k] = [skeleton.GetPoint(k)]
+    if len(vertexDict) > next: #Check that we have found a spider center and we have enough to skip (0 if we're not skipping)
+        for i in range(next): #skip to next spider center with highest degree
+            vertexDict.pop(avm)
+            avm = max(vertexDict, key=vertexDict.get)
 
-    #find max radius for sphere centered on each node
-    if method=="spheres":
-        for k in avmPoints:
-            avmPoints[k].append(getFurthestDist(skeleton, k)) #return central points and sphere radius
-    elif method == "hull" or method == "boundingbox":
-        #get all points connected to sphere centers which will allow to find convex hull or bounding box later
-        for k in avmPoints:
-            avmPoints[k].extend(getAdjacentPointsExtended(skeleton, k)) 
-    return avmPoints
+        avmPoints = {}
+        avmPoints[avm] = [skeleton.GetPoint(avm)]#.append(avm)
+        for k in vertexDict:
+            if areAdjacent(skeleton, avm, k) and k not in avmPoints: #check we haven't added it yet bc we'd have twice the same --- Not necessary anymore
+                #avmNodes.append(k)
+                avmPoints[k] = [skeleton.GetPoint(k)]
+
+        #find max radius for sphere centered on each node
+        if method=="spheres":
+            for k in avmPoints:
+                avmPoints[k].append(getFurthestDist(skeleton, k)) #return central points and sphere radius
+        elif method == "hull" or method == "boundingbox":
+            #get all points connected to sphere centers which will allow to find convex hull or bounding box later
+            for k in avmPoints:
+                avmPoints[k].extend(getAdjacentPointsExtended(skeleton, k)) 
+        return avmPoints
+    return None #We didn't find a spider
     
-def avmMask(imgshape, origin, spacing, skeleton, method="spheres"):
+def avmMask(imgshape, origin, spacing, skeleton, method="spheres", next=0):
     '''skeleton: vtkpolydata with unique points (each location has its own id)
     method: how to report the spiders (spheres: max radius for each sphere center, hull: all adjacent points to get convex hull)'''
     #print("doing spiders with method", method)
-    spiders = findAVMSpiders(skeleton, method)
+    spiders = findAVMSpiders(skeleton, method, next)
     #print(spiders)
     #print(method)
-    if method=="spheres":
-        #print("doing spheres")
-        mask = multipleSpheres(imgshape, spiders, origin, spacing)
-    elif method == "hull":
-        mask = convexHull(imgshape, spiders, origin, spacing)
-    elif method == "boundingbox":
-        mask = boundingBox(imgshape, spiders, origin, spacing)
-    else:
-        print("Invalid method")
-    return mask
+    if spiders is not None: #we found a spider
+        if method=="spheres":
+            #print("doing spheres")
+            mask = multipleSpheres(imgshape, spiders, origin, spacing)
+        elif method == "hull":
+            mask = convexHull(imgshape, spiders, origin, spacing)
+        elif method == "boundingbox":
+            mask = boundingBox(imgshape, spiders, origin, spacing)
+        else:
+            print("Invalid method")
+            return None
+        return mask
+    return None
 
 
 # def processCenterline(inputf, case):
@@ -455,12 +502,13 @@ def main():
         numpyspa = infodict["spacing"] if "vmtk" in inputf else (1,1,1)
 
         mask = avmMask(numpyshape, numpyorigin, numpyspa, img, method)
-        masksitk = numpyToSITK(mask)
-        masksitk.SetOrigin(infodict["origin"])
-        masksitk.SetSpacing(infodict["spacing"])
-        #print(masksitk.GetOrigin())
-        #print(masksitk.GetSize())
-        writeSITK(masksitk, outputf)
+        if mask is not None: #We only try to write something if we found a spider and such
+            masksitk = numpyToSITK(mask.astype(np.int32))
+            masksitk.SetOrigin(infodict["origin"])
+            masksitk.SetSpacing(infodict["spacing"])
+            #print(masksitk.GetOrigin())
+            #print(masksitk.GetSize())
+            writeSITK(masksitk, outputf)
 
 
 
