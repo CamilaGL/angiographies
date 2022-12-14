@@ -40,6 +40,8 @@ def main():
     parser.add_argument("--overwrite", help="if exists, overwrite skeleton", action="store_true", required=False, default=False)
     parser.add_argument("--grayscale", help="perform grayscale ordered thinning", action="store_true", required=False, default=False)
     parser.add_argument("-rad", help="sphere radius for morphological extraction", type=int, default=30, required=False)
+    parser.add_argument("-suffix", help="add suffix to automatic filename", default=None, required=False)
+    parser.add_argument("-next", help="discard the n first spiders with max degree", type=int, default=0, required=False)
 
     args = parser.parse_args()
     ipath = args.ipath
@@ -51,6 +53,8 @@ def main():
     grayscale = args.grayscale
     overwrite = args.overwrite
     rad = args.rad
+    suffix = args.suffix
+    next = args.next
 
     origin = None
     spacing = None
@@ -125,13 +129,22 @@ def main():
                     if nidus == "spheres" or nidus == "boundingbox" or nidus == "hull":
                         if polydata is not None:
                             print ("Doing spiders with", nidus)
+                            
                             filenamemask = filenameske+"_"+nidus
-                            print("Going to save mask here", os.path.join(outputpath, filenamemask+".nii.gz"))
-                            mask = avmMask(shape, origin, spacing, polydata, nidus) 
-                            masksitk = numpyToSITK(mask)
-                            masksitk.SetOrigin(img.GetOrigin())
-                            masksitk.SetSpacing(img.GetSpacing())
-                            writeSITK(masksitk, os.path.join(outputpath, filenamemask+".nii.gz"))
+                            if suffix is not None:
+                                filenamemask = filenamemask+"_"+suffix
+                            if os.path.isfile(os.path.join(outputpath, filenamemask+".nii.gz")) and not overwrite:
+                                print("Won't overwrite mask")
+                            else:
+                                print("Going to save mask here", os.path.join(outputpath, filenamemask+".nii.gz"))
+                                mask = avmMask(shape, origin, spacing, polydata, nidus, next) 
+                                if mask is not None:
+                                    masksitk = numpyToSITK(mask)
+                                    masksitk.SetOrigin(img.GetOrigin())
+                                    masksitk.SetSpacing(img.GetSpacing())
+                                    writeSITK(masksitk, os.path.join(outputpath, filenamemask+".nii.gz"))
+                                else:
+                                    print("Couldn't find nidus")
                         else:
                             print("No polydata")
                     else:
@@ -140,7 +153,7 @@ def main():
             elif method == "morphological": #we don't need to skeletonise for this
 
                 print ("Extracting nidus with morphological operations")
-                filenamenidus = filename+"_"+method+rad
+                filenamenidus = filename+"_"+method+"_"+str(rad)
                 img = readNIFTIasSITK(segmfile)
                 masksitk = extractNidusSphere(img, rad)#spheres
                 masksitk.SetOrigin(img.GetOrigin())
