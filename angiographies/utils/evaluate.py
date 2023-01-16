@@ -405,6 +405,16 @@ def false_negatives(test=None, reference=None, confusion_matrix=None, **kwargs):
 
     return fn
 
+def relative_volume_error(test=None, reference=None, confusion_matrix=None, **kwargs):
+    """abs (P Test - TP Reference) / P Reference"""
+
+    if confusion_matrix is None:
+        confusion_matrix = ConfusionMatrix(test, reference)
+
+    tp, fp, tn, fn = confusion_matrix.get_matrix()
+
+
+    return (abs((tp+fn)-(tp))/(tp+fn))
 
 ALL_METRICS = {
     "False Positive Rate": false_positive_rate,
@@ -430,7 +440,8 @@ ALL_METRICS = {
     "True Positives": true_positives,
     "False Positives": false_positives,
     "True Negatives": true_negatives,
-    "False Negatives": false_negatives#,
+    "False Negatives": false_negatives,
+    "Volume Relative Error": relative_volume_error#,
     # "clDice": clDice,
     # "clRecall": clrecall,
     # "clPrecision": clprecision,
@@ -465,7 +476,8 @@ class Evaluator:
         "True Positives",
         "False Positives",
         "True Negatives",
-        "False Negatives"#,
+        "False Negatives",
+        "Volume Relative Error"#,
         # "clDice",
         # "clRecall",
         # "clPrecision",
