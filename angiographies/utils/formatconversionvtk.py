@@ -1,5 +1,8 @@
 import vtk
-from vtkmodules.util import numpy_support
+try:
+    from vtkmodules.util import numpy_support
+except ImportError:
+    from vtk.util import numpy_support
 
 def vtkToNumpy(inputImage):
     dimensions = inputImage.GetDimensions() # Get Dimensions
