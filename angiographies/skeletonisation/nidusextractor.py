@@ -240,12 +240,14 @@ def getAdjacentPointsExtended(skeleton, v, arrayname = "Radius"):
         elif (skeleton.GetPoint(skeleton.GetCell(c).GetPointId(skeleton.GetCell(c).GetNumberOfPoints()-1)) == skeleton.GetPoint(v)): #last point, find second to last point
             p2id = skeleton.GetCell(c).GetPointId(skeleton.GetCell(c).GetNumberOfPoints()-2)
         p2 = skeleton.GetPoint(p2id)
-        lenAB = math.sqrt(pow(p1[0] - p2[0], 2.0) + pow(p1[1] - p2[1], 2.0) + pow(p1[2] - p2[2], 2.0))
+        #lenAB = math.sqrt(pow(p1[0] - p2[0], 2.0) + pow(p1[1] - p2[1], 2.0) + pow(p1[2] - p2[2], 2.0))
+        lenAB = math.sqrt(vtk.vtkMath.Distance2BetweenPoints(p1, p2))
         vectAB = minus(p2, p1)
         normAB = divTS(vectAB, lenAB)
         extendto = skeleton.GetPointData().GetArray(arrayname).GetValue(p2id)
-        p3 = sum(mulTS(normAB, extendto), p1)
+        p3 = sum(mulTS(normAB, extendto), p2)
         adjacent.append(p3)
+    adjacent.append(p1)
     return adjacent
 
 
