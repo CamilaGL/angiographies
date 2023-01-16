@@ -16,17 +16,18 @@ def main():
     args = parser.parse_args()
     ifolder = args.ifolder
     #append = args.a
-    
-    translate = {"morphological":"Morph", "skeletonedt": "Ske", "vmtk": "VMTK", "boundingbox" : "BB", "convexhull":"CH", "spheres" : "Sph"}
+    segm1=["dl", "manual","dldice"]
+    segm2=["dl_cldice"]
+    translate = {"morphological":"Morph", "skeletonedt": "Thin", "vmtk": "VMTK", "boundingbox" : "BB", "hull":"CH", "spheres" : "Sph"}
 
     header = ["Case", "Segmentation","Metric", "Value","Method", "Tries"] #header manual
     alldices = []
-    for segm in ["dl", "manual","dldice"]:
+    for segm in segm1:
         allmethods = getsubdirs(ifolder, contains = segm+"_", join=False) if isdir(ifolder) else None
         for evaluation in allmethods:
-            method = evaluation.split("_")[1]
+            method = evaluation.split("_")[1] #1 if doing five cases, 2 if seventeen
             method = translate[method] if method in translate else method
-            submethod = evaluation.split("_")[2]
+            submethod = evaluation.split("_")[2] #2 if doing five cases, 3 if seventeen
             submethod = translate[submethod] if submethod in translate else submethod
             with open(os.path.join(ifolder, evaluation,"summary.json"),"r") as f:
             
@@ -39,9 +40,9 @@ def main():
                 for i in data['results']['all']:
                     intentos = 0
                     case = (i['reference'].split(os.path.sep)[-1]).split(".nii.gz")[0]
-                    if (case in ["3009", "3034"] and segm == "dl" and method == "Ske") or (case in ["3020"] and segm == "manual" and method == "Ske"):
+                    if (case in ["3009", "3034"] and segm == "dl" and method == "Thin") or (case in ["3020"] and segm == "manual" and method == "Thin"):
                         intentos = 1
-                    if (case in ["3032"] and segm == "manual" and method == "Ske"):
+                    if (case in ["3032"] and segm == "manual" and method == "Thin"):
                         intentos = 3
                     for metric in ["Dice", "Recall", "Precision"]:
                         value = float(i["1"][metric])
@@ -49,7 +50,7 @@ def main():
     print(header)
     print(alldices)
 
-    with open(os.path.join(ifolder,"alldices-twodl-intentos.csv"), 'w', encoding='UTF8', newline='') as f:
+    with open(os.path.join(ifolder,"fivedices-fixed.csv"), 'w', encoding='UTF8', newline='') as f:
         writer = csv.writer(f)
         # write the header
         writer.writerow(header)
