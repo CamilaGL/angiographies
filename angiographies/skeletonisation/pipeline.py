@@ -39,7 +39,7 @@ def main():
     #parser.add_argument("--gaussian", help="perform gaussian smoothing", action="store_true", required=False, default=False)
     parser.add_argument("--overwrite", help="if exists, overwrite skeleton", action="store_true", required=False, default=False)
     parser.add_argument("--grayscale", help="perform grayscale ordered thinning", action="store_true", required=False, default=False)
-    parser.add_argument("-rad", help="sphere radius for morphological extraction", type=int, default=30, required=False)
+    parser.add_argument("-rad", help="sphere radius for morphological extraction", type=int, default=15, required=False)
     parser.add_argument("-suffix", help="add suffix to automatic filename", default=None, required=False)
     parser.add_argument("-next", help="discard the n first spiders with max degree", type=int, default=0, required=False)
 
@@ -154,11 +154,14 @@ def main():
 
                 print ("Extracting nidus with morphological operations")
                 filenamenidus = filename+"_"+method+"_"+str(rad)
-                img = readNIFTIasSITK(segmfile)
-                masksitk = extractNidusSphere(img, rad)#spheres
-                masksitk.SetOrigin(img.GetOrigin())
-                masksitk.SetSpacing(img.GetSpacing())
-                writeSITK(masksitk, os.path.join(outputpath, filenamenidus+".nii.gz"))
+                if os.path.isfile(os.path.join(outputpath, filenamenidus+".nii.gz")) and not overwrite:
+                    print("Won't overwrite mask")
+                else:
+                    img = readNIFTIasSITK(segmfile)
+                    masksitk = extractNidusSphere(img, rad)#spheres
+                    masksitk.SetOrigin(img.GetOrigin())
+                    masksitk.SetSpacing(img.GetSpacing())
+                    writeSITK(masksitk, os.path.join(outputpath, filenamenidus+".nii.gz"))
 
             else:
                 print ("Invalid method")
