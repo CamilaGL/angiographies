@@ -154,6 +154,8 @@ def main():
 
                 print ("Extracting nidus with morphological operations")
                 filenamenidus = filename+"_"+method+"_"+str(rad)
+                if suffix is not None:
+                    filenamenidus = filenamenidus+"_"+suffix
                 if os.path.isfile(os.path.join(outputpath, filenamenidus+".nii.gz")) and not overwrite:
                     print("Won't overwrite mask")
                 else:
