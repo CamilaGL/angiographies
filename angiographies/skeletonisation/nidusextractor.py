@@ -90,8 +90,18 @@ def extractNidusSphere(img, radius):
     vectorRadius = (radius,radius,radius)
     kernel = sitk.sitkBall
     nidusitk = sitk.BinaryMorphologicalClosing(img, vectorRadius, kernel)
+    closing = thresholdImageSITK(nidusitk, 1, 1)
+    closing.SetOrigin(img.GetOrigin())
+    closing.SetSpacing(img.GetSpacing())
+    closing.SetDirection(img.GetDirection())
+    #writeSITK(closing, os.path.join("/media/camila/Datos4TB/proyectos/newpipe/3032/3032_manual_morphological_20_closing.nii.gz"))
+
     nidusitk = sitk.BinaryMorphologicalOpening(nidusitk, vectorRadius, kernel)
     nidusitk = thresholdImageSITK(nidusitk, 1, 1)
+    nidusitk.SetOrigin(img.GetOrigin())
+    nidusitk.SetSpacing(img.GetSpacing())
+    nidusitk.SetDirection(img.GetDirection())
+    #writeSITK(nidusitk, os.path.join("/media/camila/Datos4TB/proyectos/newpipe/3032/3032_manual_morphological_20_opening.nii.gz"))
     #print(type(npimg[0,0,0]))
     #print(type(SITKToNumpy(nidusitk)[0,0,0]))
     #realnidus = np.logical_and(npimg>0,(su.SITKToNumpy(nidusitk))>0)
@@ -105,11 +115,14 @@ def extractNidusSphere(img, radius):
     #print(realnidusnp)
     realnidusitk = numpyToSITK(realnidus)
     #nidusitk and img to get nidus in image
-    #img - (nidusitk and img)
-    realnidusitk.SetOrigin(img.GetOrigin())
-    realnidusitk.SetSpacing(img.GetSpacing())
-    realnidusitk.SetDirection(img.GetDirection())
-    #nidusitkconn = getLargestConnected(nidusitk)
+    # #img - (nidusitk and img)
+    # realnidusitk.SetOrigin(img.GetOrigin())
+    # realnidusitk.SetSpacing(img.GetSpacing())
+    # realnidusitk.SetDirection(img.GetDirection())
+    nidusitkconn = getLargestConnected(realnidusitk)
+    nidusitkconn.SetOrigin(img.GetOrigin())
+    nidusitkconn.SetSpacing(img.GetSpacing())
+    nidusitkconn.SetDirection(img.GetDirection())
     #print(su.SITKToNumpy(nidusitk))
     # extracted = numpyToSITK(np.add(npimg,-realnidus))
     # extracted.SetOrigin(img.GetOrigin())
@@ -118,7 +131,7 @@ def extractNidusSphere(img, radius):
     #writeSITK(extracted,inputf+"AVM_veinarteryCH"+os.path.sep+(((case.split(os.path.sep)[-1]).split(".")[0]))+".nii.gz")
     #writeSITK(realnidusitk,inputf+"AVM_nidusCH"+os.path.sep+(((case.split(os.path.sep)[-1]).split(".")[0]))+".nii.gz")
     print("--- %s seconds ---" % (time.time() - start_time))
-    return realnidusitk
+    return nidusitkconn
 
 
 #---- change this one to receive centerlines ready
