@@ -31,7 +31,7 @@ def overlapMask(img, mask):
     nidus = numpyToSITK(npnidus)
     #nidusitk and img to get nidus in image
     #img - (nidusitk and img)
-    #nidus = getLargestConnected(nidus)
+    nidus = getLargestConnected(nidus)
     nidus.SetOrigin(img.GetOrigin())
     nidus.SetSpacing(img.GetSpacing())
     nidus.SetDirection(img.GetDirection())
