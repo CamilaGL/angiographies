@@ -15,6 +15,9 @@ import argparse
 import time
 from collections import OrderedDict
 from angiographies.utils.iovtk import readNIFTIasVTK, writeVTKPolydataasVTP
+# from angiographies.utils.imageprocessing import getLargestConnected
+# from angiographies.utils.formatconversionsitk import *
+# from angiographies.utils.formatconversionvtk import * 
 
 
 def segmentationToClippedMesh(inputImage, dist):
@@ -141,6 +144,7 @@ def main():
     img = readNIFTIasVTK(inputf)
     origin = img.GetOrigin()
     spacing = img.GetSpacing()
+    #imconn = NumpyToVTK(SITKToNumpy(getLargestConnected(numpyToSITK(vtkToNumpy(img)))))
     network = getvmtkNetwork(img)
 
     writeVTKPolydataasVTP(network, outputf)
