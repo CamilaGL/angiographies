@@ -242,26 +242,29 @@ def getAdjacentPointsExtended(skeleton, v, arrayname = "Radius"):
     '''Creates a list with the points connected to v, but considering the line extended according to radius | edt
     skeleton: polydata with lines and points
     v: point id'''
-    adjacent = []
-    cellIds = vtk.vtkIdList()
-    p1 = skeleton.GetPoint(v)
-    skeleton.GetPointCells(v, cellIds) #get cells incident
-    incident = [cellIds.GetId(c) for c in range(cellIds.GetNumberOfIds())]
-    for c in incident:
-        if (skeleton.GetPoint(skeleton.GetCell(c).GetPointId(0)) == skeleton.GetPoint(v)): #first point, find next point
-            p2id = skeleton.GetCell(c).GetPointId(1)
-        elif (skeleton.GetPoint(skeleton.GetCell(c).GetPointId(skeleton.GetCell(c).GetNumberOfPoints()-1)) == skeleton.GetPoint(v)): #last point, find second to last point
-            p2id = skeleton.GetCell(c).GetPointId(skeleton.GetCell(c).GetNumberOfPoints()-2)
-        p2 = skeleton.GetPoint(p2id)
-        #lenAB = math.sqrt(pow(p1[0] - p2[0], 2.0) + pow(p1[1] - p2[1], 2.0) + pow(p1[2] - p2[2], 2.0))
-        lenAB = math.sqrt(vtk.vtkMath.Distance2BetweenPoints(p1, p2))
-        vectAB = minus(p2, p1)
-        normAB = divTS(vectAB, lenAB)
-        extendto = skeleton.GetPointData().GetArray(arrayname).GetValue(p2id)
-        p3 = sum(mulTS(normAB, extendto), p2)
-        adjacent.append(p3)
-    adjacent.append(p1)
-    return adjacent
+    if skeleton.GetPointData().GetArray(arrayname) is not None:
+        adjacent = []
+        cellIds = vtk.vtkIdList()
+        p1 = skeleton.GetPoint(v)
+        skeleton.GetPointCells(v, cellIds) #get cells incident
+        incident = [cellIds.GetId(c) for c in range(cellIds.GetNumberOfIds())]
+        for c in incident:
+            if (skeleton.GetPoint(skeleton.GetCell(c).GetPointId(0)) == skeleton.GetPoint(v)): #first point, find next point
+                p2id = skeleton.GetCell(c).GetPointId(1)
+            elif (skeleton.GetPoint(skeleton.GetCell(c).GetPointId(skeleton.GetCell(c).GetNumberOfPoints()-1)) == skeleton.GetPoint(v)): #last point, find second to last point
+                p2id = skeleton.GetCell(c).GetPointId(skeleton.GetCell(c).GetNumberOfPoints()-2)
+            p2 = skeleton.GetPoint(p2id)
+            #lenAB = math.sqrt(pow(p1[0] - p2[0], 2.0) + pow(p1[1] - p2[1], 2.0) + pow(p1[2] - p2[2], 2.0))
+            lenAB = math.sqrt(vtk.vtkMath.Distance2BetweenPoints(p1, p2))
+            vectAB = minus(p2, p1)
+            normAB = divTS(vectAB, lenAB)
+            extendto = skeleton.GetPointData().GetArray(arrayname).GetValue(p2id)
+            p3 = sum(mulTS(normAB, extendto), p2)
+            adjacent.append(p3)
+        adjacent.append(p1)
+        return adjacent
+    else:
+        return getAdjacentPoints(skeleton, v)
 
 
 def getFurthestDist(skeleton, v):
@@ -435,6 +438,23 @@ def avmMask(imgshape, origin, spacing, skeleton, method="spheres", next=0):
             print("Invalid method")
             return None
         return mask
+    return None
+
+    
+def largestSphere(imgshape, origin, spacing, skeleton, next=0):
+    '''skeleton: vtkpolydata with unique points (each location has its own id)
+    method: how to report the spiders (spheres: max radius for each sphere center, hull: all adjacent points to get convex hull)'''
+    #print("doing spiders with method", method)
+    spiders = findAVMSpiders(skeleton, "spheres", next)
+    #print(spiders)
+    #print(method)
+    maxrad = 0
+    if spiders is not None: #we found a spider
+        for k in spiders.keys():
+            rad = divS(spiders[k][1], spacing)
+            if rad[0] > maxrad:
+                maxrad = rad[0]
+        return maxrad
     return None
 
 
