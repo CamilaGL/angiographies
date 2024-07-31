@@ -23,6 +23,7 @@ from angiographies.skeletonisation.skeletongraph import binSketoSke2
 from angiographies.skeletonisation.polydatamerger import skeToPolyline
 from angiographies.skeletonisation.nidusextractor import avmMask
 from angiographies.skeletonisation.nidusextractor import extractNidusSphere
+from angiographies.skeletonisation.nidusextractor import largestSphere
 from angiographies.skeletonisation.vmtknetwork import getvmtkNetwork
 from angiographies.skeletonisation.networkediting import toUniquePointID
 
@@ -60,7 +61,7 @@ def main():
     spacing = None
     shape = None
     methods = ["skeleton", "vmtk", "morphological"] if method == "all" else [method]
-    niduses = ["boundingbox", "spheres", "hull"] if spider == "all" else [spider]
+    niduses = ["boundingbox", "spheres", "hull"] if spider == "all" else [spider] # , "morphological"
     thinmethod = "edt" if not grayscale else "gray"
 
     segmfile = os.path.join(ipath, "segmentation", segm, case+".nii.gz")
@@ -112,14 +113,14 @@ def main():
                     else:
                         npimgorig=None
                         if grayscale:
-                            if os.path.isfile(os.path.join(ipath, "raw", case+"_0000.nii.gz")): #check if grayscale file exists
-                                npimgorig = SITKToNumpy(readNIFTIasSITK(os.path.join(ipath, "raw", case+"_0000.nii.gz"))) if grayscale else None
+                            if os.path.isfile(os.path.join(ipath, "raw", case+".nii.gz")): #check if grayscale file exists #add _0000 if nnunet
+                                npimgorig = SITKToNumpy(readNIFTIasSITK(os.path.join(ipath, "raw", case+".nii.gz"))) if grayscale else None
                             else:
                                 print("Case does not have grayscale volume") 
                                 return                 
                         
-                        img = gaussianSmoothDiscrete(img) #perform gaussian before thinning
-                        npimg = SITKToNumpy(img)
+                        imgsm = gaussianSmoothDiscrete(img) #perform gaussian before thinning
+                        npimg = SITKToNumpy(imgsm)
                         npthinned = binarySegmToBinarySkeleton3(npimg, npimgorig, 0.25)            
                         ske, _ = binSketoSke2(npthinned, grayscale)
                         polydata = skeToPolyline(ske)
@@ -140,6 +141,28 @@ def main():
                                 mask = avmMask(shape, origin, spacing, polydata, nidus, next) 
                                 if mask is not None:
                                     masksitk = numpyToSITK(mask)
+                                    masksitk.SetOrigin(img.GetOrigin())
+                                    masksitk.SetSpacing(img.GetSpacing())
+                                    writeSITK(masksitk, os.path.join(outputpath, filenamemask+".nii.gz"))
+                                else:
+                                    print("Couldn't find nidus")
+                        else:
+                            print("No polydata")
+                    elif nidus == "morphological":
+                        if polydata is not None:
+                            print ("Doing spiders with", nidus)
+                            
+                            filenamemask = filenameske+"_"+nidus
+                            if suffix is not None:
+                                filenamemask = filenamemask+"_"+suffix
+                            if os.path.isfile(os.path.join(outputpath, filenamemask+".nii.gz")) and not overwrite:
+                                print("Won't overwrite mask")
+                            else:
+                                print("Going to save mask here", os.path.join(outputpath, filenamemask+".nii.gz"))
+                                radius = largestSphere(shape, origin, spacing, polydata, next) 
+                                if radius is not None:
+                                    img = readNIFTIasSITK(segmfile)
+                                    masksitk = extractNidusSphere(img, radius)#spheres
                                     masksitk.SetOrigin(img.GetOrigin())
                                     masksitk.SetSpacing(img.GetSpacing())
                                     writeSITK(masksitk, os.path.join(outputpath, filenamemask+".nii.gz"))
